@@ -1,0 +1,569 @@
+<title>DIR'A-PM in Slack</title>
+<meta name="description" content="Illustrative mockup of the DIR'A-PM project-management copilot answering in a Slack channel.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --ground: #f6f4f1;
+    --surface: #ffffff;
+    --surface-2: #f0ecf2;
+    --ink: #201b26;
+    --ink-soft: #574f5e;
+    --ink-faint: #857c8d;
+    --line: #e4ddea;
+    --line-strong: #d0c6d8;
+    --aubergine: #5a2a6b;
+    --aubergine-soft: #efe4f3;
+    --good: #2f7d5b;
+    --good-soft: #e2f0e8;
+    --on-good: #ffffff;
+    --warn: #9a6a00;
+    --warn-soft: #f6ecd6;
+    --crit: #b23330;
+    --crit-soft: #f7e3e2;
+    --shadow: 0 1px 2px rgba(32, 27, 38, .06), 0 8px 28px -14px rgba(32, 27, 38, .28);
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #171419;
+      --surface: #211d26;
+      --surface-2: #2b2531;
+      --ink: #ece6f0;
+      --ink-soft: #b7aec0;
+      --ink-faint: #8b8194;
+      --line: #352e3d;
+      --line-strong: #443b4e;
+      --aubergine: #c79ad6;
+      --aubergine-soft: #33223b;
+      --good: #6cc79b;
+      --good-soft: #1e3a2e;
+      --on-good: #10231a;
+      --warn: #d8a648;
+      --warn-soft: #3a2f18;
+      --crit: #e2827f;
+      --crit-soft: #3d2523;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -14px rgba(0, 0, 0, .6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #171419;
+    --surface: #211d26;
+    --surface-2: #2b2531;
+    --ink: #ece6f0;
+    --ink-soft: #b7aec0;
+    --ink-faint: #8b8194;
+    --line: #352e3d;
+    --line-strong: #443b4e;
+    --aubergine: #c79ad6;
+    --aubergine-soft: #33223b;
+    --good: #6cc79b;
+    --good-soft: #1e3a2e;
+    --warn: #d8a648;
+    --warn-soft: #3a2f18;
+    --crit: #e2827f;
+    --crit-soft: #3d2523;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -14px rgba(0, 0, 0, .6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 32px 20px 64px;
+    padding-block: 32px 64px;
+  }
+
+  /* ---- masthead ---- */
+  .mast { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 16px; }
+  .wordmark {
+    font-family: "Fraunces", Georgia, serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: clamp(1.9rem, 1.3rem + 2vw, 2.7rem);
+    letter-spacing: -.01em;
+    margin: 0;
+  }
+  .wordmark .apos { color: var(--aubergine); }
+  .tagline {
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .18em;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+  .lede {
+    margin: 14px 0 0;
+    max-width: 62ch;
+    color: var(--ink-soft);
+    font-size: 1.02rem;
+  }
+  .mockup-tag {
+    display: inline-flex; align-items: center; gap: 7px;
+    margin-top: 18px;
+    padding: 5px 11px;
+    border: 1px dashed var(--line-strong);
+    border-radius: 999px;
+    font-size: .74rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+  .mockup-tag::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--warn); }
+
+  /* ---- pipeline strip ---- */
+  .pipe {
+    margin-top: 26px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 6px;
+    font-size: .82rem;
+  }
+  .pipe .node {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .pipe .node b { font-weight: 600; letter-spacing: -.01em; }
+  .pipe .node span { color: var(--ink-faint); font-size: .74rem; }
+  .pipe .arrow { align-self: center; color: var(--ink-faint); font-size: .9rem; }
+  .pipe .node.rule b { color: var(--aubergine); }
+
+  /* ---- layout ---- */
+  .grid {
+    margin-top: 34px;
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    gap: 22px;
+    align-items: start;
+  }
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+    .rail { order: 2; }
+  }
+
+  /* ---- channel rail ---- */
+  .rail {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 14px;
+    position: sticky;
+    top: 16px;
+    font-size: .86rem;
+  }
+  .rail h2 {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--ink-faint); margin: 0 0 8px; font-weight: 700;
+  }
+  .rail .chan {
+    font-weight: 600; font-size: 1rem; letter-spacing: -.01em;
+    display: flex; align-items: baseline; gap: 4px;
+  }
+  .rail .chan .hash { color: var(--ink-faint); font-weight: 500; }
+  .rail .topic { color: var(--ink-soft); margin: 4px 0 14px; font-size: .84rem; }
+  .rail ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+  .rail li { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); }
+  .rail .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--good); flex: none; }
+  .rail li.app .dot { background: var(--aubergine); }
+  .rail .ways { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .rail .ways h2 { margin-bottom: 9px; }
+  .rail .ways p { margin: 0 0 8px; color: var(--ink-soft); font-size: .82rem; }
+  .rail .ways code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    background: var(--surface-2); padding: 1px 5px; border-radius: 4px;
+    font-size: .8em; color: var(--aubergine);
+  }
+
+  /* ---- transcript ---- */
+  .feed {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .feed-head {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 8px;
+    background: var(--surface);
+  }
+  .feed-head .hash { color: var(--ink-faint); }
+  .feed-head b { font-weight: 600; letter-spacing: -.01em; }
+  .feed-head .members { margin-left: auto; color: var(--ink-faint); font-size: .8rem; }
+  .feed-body { padding: 6px 18px 18px; display: flex; flex-direction: column; }
+
+  .msg { display: grid; grid-template-columns: 38px 1fr; gap: 10px; padding: 12px 0 6px; }
+  .msg + .msg { border-top: 1px solid var(--line); }
+  .av {
+    width: 38px; height: 38px; border-radius: 8px;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: .9rem; color: #fff;
+    font-family: "IBM Plex Sans", sans-serif;
+  }
+  .av.l { background: #3d6b8e; }
+  .av.o { background: #8e5a3d; }
+  .av.app { background: var(--aubergine); border-radius: 9px; }
+  .who { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .who b { font-weight: 600; letter-spacing: -.01em; }
+  .who .app-badge {
+    font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    background: var(--aubergine-soft); color: var(--aubergine);
+    padding: 1px 5px; border-radius: 4px;
+  }
+  .who time { color: var(--ink-faint); font-size: .76rem; font-variant-numeric: tabular-nums; }
+  .msg p { margin: 4px 0 0; }
+
+  .cmd {
+    margin-top: 5px;
+    font-size: .92rem;
+    color: var(--ink-soft);
+  }
+  .cmd .slash {
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--aubergine); font-weight: 500;
+    background: var(--aubergine-soft);
+    padding: 1px 6px; border-radius: 5px;
+  }
+  .attach {
+    margin-top: 8px;
+    display: inline-flex; align-items: center; gap: 9px;
+    border: 1px solid var(--line-strong); border-radius: 8px;
+    padding: 8px 12px; font-size: .84rem;
+  }
+  .attach .fi {
+    font-family: "IBM Plex Mono", monospace; font-size: .64rem; font-weight: 600;
+    background: var(--good-soft); color: var(--good);
+    padding: 3px 5px; border-radius: 4px;
+  }
+  .attach span.meta { color: var(--ink-faint); }
+
+  /* ---- the brief card (Block Kit) ---- */
+  .card {
+    margin-top: 10px;
+    border: 1px solid var(--line-strong);
+    border-left: 3px solid var(--aubergine);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card-head {
+    padding: 12px 16px 10px;
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.15rem;
+    letter-spacing: -.01em;
+    border-bottom: 1px solid var(--line);
+  }
+  .card-ctx {
+    padding: 8px 16px;
+    font-size: .78rem;
+    color: var(--ink-faint);
+    display: flex; flex-wrap: wrap; gap: 4px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .card-ctx code {
+    font-family: "IBM Plex Mono", monospace; font-size: .92em;
+    color: var(--ink-soft);
+  }
+  .card-ctx .spec { color: var(--aubergine); font-weight: 600; }
+  .brief { padding: 6px 16px 14px; }
+  .brief section { padding: 11px 0; border-bottom: 1px dotted var(--line-strong); }
+  .brief section:last-child { border-bottom: 0; }
+  .brief h3 {
+    margin: 0 0 4px;
+    font-size: .72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .11em;
+    color: var(--ink-faint);
+  }
+  .brief h3 .ic { color: var(--aubergine); }
+  .brief p { margin: 0; font-size: .95rem; color: var(--ink); }
+  .brief .num {
+    font-family: "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: .9em;
+    padding: 0 2px;
+  }
+  .brief .tag {
+    display: inline-block;
+    font-size: .74rem; font-weight: 600;
+    padding: 1px 7px; border-radius: 999px;
+    vertical-align: baseline;
+  }
+  .tag.crit { background: var(--crit-soft); color: var(--crit); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.good { background: var(--good-soft); color: var(--good); }
+
+  .card-actions {
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border-top: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .btn {
+    font: inherit; font-size: .86rem; font-weight: 600;
+    padding: 8px 15px; border-radius: 6px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface); color: var(--ink);
+    cursor: pointer;
+  }
+  .btn:focus-visible { outline: 2px solid var(--aubergine); outline-offset: 2px; }
+  .btn.primary { background: var(--good); border-color: var(--good); color: var(--on-good); }
+  .btn.danger { color: var(--crit); border-color: color-mix(in srgb, var(--crit) 45%, var(--line-strong)); }
+  .card-foot {
+    padding: 9px 16px 12px;
+    font-size: .76rem; color: var(--ink-faint);
+    font-style: italic;
+  }
+
+  .decision {
+    margin-top: 4px;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: .9rem; color: var(--ink-soft);
+  }
+  .decision .chk { color: var(--good); font-weight: 700; }
+
+  /* ---- audit ---- */
+  .audit {
+    margin-top: 22px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .audit h2 {
+    margin: 0 0 3px; font-size: 1.05rem; letter-spacing: -.01em;
+    font-family: "Fraunces", Georgia, serif; font-weight: 600;
+  }
+  .audit p.sub { margin: 0 0 12px; color: var(--ink-soft); font-size: .86rem; }
+  .audit .log {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    overflow-x: auto;
+  }
+  .audit pre {
+    margin: 0;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .76rem;
+    line-height: 1.7;
+    color: var(--ink-soft);
+    white-space: pre;
+  }
+  .audit pre .k { color: var(--aubergine); }
+  .audit pre .s { color: var(--good); }
+  .audit pre .d { color: var(--ink-faint); }
+
+  footer {
+    margin-top: 30px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 8px 20px;
+    font-size: .83rem; color: var(--ink-faint);
+  }
+  footer code {
+    font-family: "IBM Plex Mono", monospace; font-size: .92em;
+    background: var(--surface-2); padding: 1px 5px; border-radius: 4px; color: var(--ink-soft);
+  }
+  footer a { color: var(--aubergine); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .card { animation: rise .5s cubic-bezier(.2, .7, .2, 1) both; }
+    @keyframes rise { from { opacity: .4; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <h1 class="wordmark">DIR<span class="apos">'</span>A&#8209;PM</h1>
+    <span class="tagline">Decide · Defend · Deliver</span>
+  </header>
+  <p class="lede">
+    A project-management copilot that lives in the team&#8217;s Slack channel. It runs the
+    PM math that would otherwise be scattered across spreadsheets and MS&nbsp;Project &mdash;
+    critical path, weighted decision matrix, earned value &mdash; and hands back one
+    consolidated brief. The calculations run in deterministic Python; the AI only routes
+    and consolidates; <strong>a human always makes the call.</strong>
+  </p>
+  <span class="mockup-tag">Illustrative mockup &middot; example data &middot; Slack-style channel</span>
+
+  <div class="pipe" aria-label="How a request flows through DIR'A-PM">
+    <div class="node"><b>Slack</b><span>/pm &middot; @mention &middot; CSV</span></div>
+    <span class="arrow">&rarr;</span>
+    <div class="node rule"><b>Router</b><span>LLM picks specialists</span></div>
+    <span class="arrow">&rarr;</span>
+    <div class="node"><b>Engines</b><span>CPM &middot; scoring &middot; EVM</span></div>
+    <span class="arrow">&rarr;</span>
+    <div class="node rule"><b>Orchestrator</b><span>LLM writes one brief</span></div>
+    <span class="arrow">&rarr;</span>
+    <div class="node"><b>Slack + audit log</b><span>decision by a human</span></div>
+  </div>
+
+  <div class="grid">
+    <aside class="rail">
+      <h2>Channel</h2>
+      <div class="chan"><span class="hash">#</span>project&#8209;x</div>
+      <p class="topic">Delivery planning &amp; budget for the Q4 launch.</p>
+      <h2>In here</h2>
+      <ul>
+        <li><span class="dot"></span> Layla Haddad &middot; PM</li>
+        <li><span class="dot"></span> Omar Farouk &middot; sponsor</li>
+        <li><span class="dot"></span> Priya Nair &middot; tech lead</li>
+        <li class="app"><span class="dot"></span> DIR'A&#8209;PM &middot; app</li>
+      </ul>
+      <div class="ways">
+        <h2>Three ways in</h2>
+        <p><code>/pm</code> a question in plain words</p>
+        <p><code>@DIR'A-PM</code> in any thread</p>
+        <p>drop a <code>tasks</code> / <code>scoring</code> / <code>cost</code> CSV</p>
+      </div>
+    </aside>
+
+    <main class="feed">
+      <div class="feed-head">
+        <span class="hash">#</span><b>project&#8209;x</b>
+        <span class="members">3 people + 1 app</span>
+      </div>
+      <div class="feed-body">
+
+        <article class="msg">
+          <div class="av l">LH</div>
+          <div>
+            <div class="who"><b>Layla Haddad</b><time>10:32</time></div>
+            <div class="cmd">
+              <span class="slash">/pm</span> give me the full picture on Project&nbsp;X &mdash;
+              schedule CSV below, vendor scores from Tuesday&#8217;s call
+              (weights 30/20/30/10/10; Option&nbsp;1 = 100/90/40/70/50,
+              Option&nbsp;4 = 10/95/100/100/100), and we&#8217;re at
+              PV&nbsp;42k / EV&nbsp;35k / AC&nbsp;41k / BAC&nbsp;120k.
+            </div>
+            <div class="attach">
+              <span class="fi">CSV</span>
+              <span>projectx&#8209;schedule.csv</span>
+              <span class="meta">&middot; 8 tasks</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="msg">
+          <div class="av app">D</div>
+          <div>
+            <div class="who">
+              <b>DIR'A&#8209;PM</b><span class="app-badge">App</span><time>10:33</time>
+            </div>
+
+            <div class="card">
+              <div class="card-head">DIR'A&#8209;PM &mdash; Executive Brief</div>
+              <div class="card-ctx">
+                <span>Specialists consulted: <span class="spec">schedule, scoring, cost</span></span>
+                <span>&middot; requested by @Layla&nbsp;Haddad</span>
+                <span>&middot; event <code>a1f2c9d0</code></span>
+              </div>
+
+              <div class="brief">
+                <section>
+                  <h3><span class="ic">&#9679;</span> Summary</h3>
+                  <p>Project&nbsp;X sits on a <span class="num">17</span>-working-day critical
+                  path and is currently <span class="tag crit">over budget</span>
+                  <span class="tag warn">behind schedule</span>. The vendor choice is a dead
+                  heat and needs a tiebreaker before it can be defended.</p>
+                </section>
+                <section>
+                  <h3><span class="ic">&#9679;</span> Key findings</h3>
+                  <p>Critical path is A&nbsp;&rarr;&nbsp;B&nbsp;&rarr;&nbsp;D&nbsp;&rarr;&nbsp;F&nbsp;&rarr;&nbsp;G&nbsp;&rarr;&nbsp;H
+                  at <span class="num">17</span> days; only &#8220;Draft documentation&#8221;
+                  carries real slack (<span class="num">11</span> days). Weighted scoring puts
+                  Option&nbsp;1 and Option&nbsp;4 both at <span class="num">72</span>/100. Cost
+                  performance <span class="num">CPI&nbsp;0.85</span>,
+                  schedule performance <span class="num">SPI&nbsp;0.83</span>, forecast cost at
+                  completion <span class="num">$140,571</span> against a
+                  <span class="num">$120,000</span> budget.</p>
+                </section>
+                <section>
+                  <h3><span class="ic">&#9679;</span> Risks &amp; conflicts</h3>
+                  <p>Over budget and behind schedule at once &mdash; with float only on the
+                  documentation task, any slip on a critical task moves the launch date
+                  one&#8209;for&#8209;one. Option&nbsp;1 and Option&nbsp;4 are separated by
+                  <span class="num">0</span> points, so a pick on headline score alone is not
+                  defensible to the sponsor.</p>
+                </section>
+                <section>
+                  <h3><span class="ic">&#9679;</span> Missing information</h3>
+                  <p>The vendor matrix has no cost or delivery-time criterion, though the
+                  project is cost-constrained. No resource assignments were provided, so the
+                  schedule assumes unlimited parallel work.</p>
+                </section>
+                <section>
+                  <h3><span class="ic">&#9679;</span> Recommended next step</h3>
+                  <p>Choose one: <strong>(a)</strong> re-score the vendors with cost weighted
+                  in; <strong>(b)</strong> approve Option&nbsp;1 and open a change request for
+                  the overrun; or <strong>(c)</strong> escalate the CPI/SPI trend to the
+                  sponsor before committing spend.</p>
+                </section>
+              </div>
+
+              <div class="card-actions">
+                <button class="btn primary" type="button">&#10003;&nbsp; Approve</button>
+                <button class="btn" type="button">&#128172;&nbsp; Discuss further</button>
+                <button class="btn danger" type="button">&#10007;&nbsp; Reject</button>
+              </div>
+              <div class="card-foot">
+                AI advises. Humans decide. This decision is logged to the audit trail.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="msg">
+          <div class="av o">OF</div>
+          <div>
+            <div class="who"><b>Omar Farouk</b><time>10:35</time></div>
+            <div class="decision">
+              <span class="chk">&#10003; Approved</span>
+              by <b>Omar&nbsp;Farouk</b> &mdash; option&nbsp;(c), escalating first. Logged to the audit trail.
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </main>
+  </div>
+
+  <section class="audit">
+    <h2>The audit trail</h2>
+    <p class="sub">
+      Every request, every specialist result, and every human decision is one JSON line in
+      <code style="font-family:'IBM Plex Mono',monospace">audit_log/audit_trail.jsonl</code>.
+      Nothing the bot does is off the record.
+    </p>
+    <div class="log">
+<pre><span class="d">{</span><span class="k">"event_id"</span>:<span class="s">"a1f2c9d0"</span>, <span class="k">"ts"</span>:<span class="s">"2026-09-12T10:33:04Z"</span>, <span class="k">"source"</span>:<span class="s">"slash_command"</span>, <span class="k">"requester"</span>:<span class="s">"U_LAYLA"</span>, <span class="k">"provider"</span>:<span class="s">"anthropic"</span>,
+ <span class="k">"tool_calls"</span>:[<span class="s">"run_schedule_analysis"</span>,<span class="s">"run_scoring_analysis"</span>,<span class="s">"run_cost_analysis"</span>], <span class="k">"outcome"</span>:<span class="s">"brief_generated"</span><span class="d">}</span>
+<span class="d">{</span><span class="k">"event_id"</span>:<span class="s">"b7e40a11"</span>, <span class="k">"ts"</span>:<span class="s">"2026-09-12T10:35:22Z"</span>, <span class="k">"source"</span>:<span class="s">"human_decision"</span>, <span class="k">"requester"</span>:<span class="s">"U_OMAR"</span>,
+ <span class="k">"decision"</span>:<span class="s">"&#10003; Approved"</span>, <span class="k">"decision_for_event"</span>:<span class="s">"a1f2c9d0"</span>, <span class="k">"outcome"</span>:<span class="s">"human_decision"</span><span class="d">}</span></pre>
+    </div>
+  </section>
+
+  <footer>
+    <span>Run it offline: <code>python demo/cli_demo.py all</code></span>
+    <span>Live in Slack (Socket Mode): <code>python slack_app/app.py</code></span>
+    <span>Repo: <a href="https://github.com/RamaAbdallah7/ctrl-alt-defeat/tree/prep">RamaAbdallah7/ctrl-alt-defeat</a></span>
+  </footer>
+</div>
