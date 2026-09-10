@@ -10,6 +10,9 @@ __pycache__/
 venv/
 *.egg-info/
 
+# Runtime audit trail (regenerated on every run)
+audit_log/*.jsonl
+
 # Node
 node_modules/
 dist/
