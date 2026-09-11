@@ -1,0 +1,9 @@
+id,name,duration,predecessors
+A,Requirements gathering,3,
+B,System design,4,A
+C,Draft documentation,1,A
+D,Backend build,6,B
+E,Frontend build,5,B
+F,Integration testing,2,D;E
+G,Final docs review,1,C;F
+H,Launch,1,G
