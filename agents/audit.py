@@ -1,7 +1,7 @@
 """Append-only audit trail. Every request the orchestrator handles gets one
 JSON line here: who asked, what was extracted, what each engine returned,
 and the final brief. This is the "Traceable audit trail" feature from the
-DIR'A architecture -- cheap to build, and it's a real differentiator in a
+Tarteeb architecture -- cheap to build, and it's a real differentiator in a
 demo because you can show the log after the fact."""
 
 from __future__ import annotations

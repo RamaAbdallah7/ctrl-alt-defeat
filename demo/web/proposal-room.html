@@ -1,4 +1,4 @@
-<title>DIR'A-PM Proposal Room</title>
+<title>Tarteeb Proposal Room</title>
 <meta name="description" content="Fill in a project proposal and watch a router split it across four specialist agents and hand every teammate a different task.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1092,7 +1092,7 @@
         </div>
         <p class="lede">${esc(pk.why)}</p>
         <div class="dm" style="--dc:${AVC[m.dom]}">
-          <div class="from">From <b>DIR'A-PM</b> · assigned because you own ${esc(isLead?"the decision":dm.label)} · run ${esc(a.at)}</div>
+          <div class="from">From <b>Tarteeb</b> · assigned because you own ${esc(isLead?"the decision":dm.label)} · run ${esc(a.at)}</div>
           <div class="hl">${esc(pk.headline)}</div>
         </div>
         ${pk.detail?`<div class="ph" style="margin:12px 0 6px"><span class="eyebrow">${isLead?"Consolidated view":dm.agent+" output"}</span></div>${pk.detail}`:""}
@@ -1194,13 +1194,13 @@ ${JSON.stringify(payload(a))}`;
     if(!sampleFn) return;
     const out=$("#aiMsgOut"), btn=$("#aiMsg"); const prev=btn.textContent;
     btn.disabled=true; btn.textContent="Thinking…";
-    out.innerHTML=`<div class="dm" style="--dc:${AVC[m.dom]}"><div class="from">From <b>DIR'A-PM</b> · draft</div><div id="amt">Thinking…</div></div>`;
+    out.innerHTML=`<div class="dm" style="--dc:${AVC[m.dom]}"><div class="from">From <b>Tarteeb</b> · draft</div><div id="amt">Thinking…</div></div>`;
     const amt=$("#amt");
     const prompt=`Write a short Slack-style direct message (3-4 sentences, warm but crisp, no greeting fluff) from a project-management bot to ${m.name}, the ${m.role}, handing over their task for "${state.analysis.input.name||'the project'}" and saying why it is theirs.
 Headline: ${pk.headline}
 Action items: ${pk.actions.map((x,i)=>(i+1)+". "+x).join(" ")}
 End by asking them to tick the items off and report back.`;
-    try{ await sampleFn(prompt,{modelTier:"quick", onText:({text})=>{ amt.textContent=text; }}); log("DIR'A-PM","drafted the message to "+m.name,"viewer's Claude"); }
+    try{ await sampleFn(prompt,{modelTier:"quick", onText:({text})=>{ amt.textContent=text; }}); log("Tarteeb","drafted the message to "+m.name,"viewer's Claude"); }
     catch(e){ amt.textContent=aiErr(e.code); }
     btn.disabled=false; btn.textContent=prev;
   }

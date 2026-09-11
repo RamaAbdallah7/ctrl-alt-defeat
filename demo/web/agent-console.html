@@ -1,0 +1,740 @@
+<title>Tarteeb Agent Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#eef1f4; --surface:#fff; --surface-2:#f7f9fb; --surface-3:#e9eef3;
+  --ink:#14202c; --ink-2:#4a5b6b; --ink-3:#7a8a99;
+  --line:#d3dbe3; --line-2:#bcc8d3;
+  --accent:#12558c; --accent-soft:#dbe8f4; --accent-ink:#0d3f6a;
+  --critical:#b3202f; --critical-soft:#fae3e5;
+  --warn:#9a6410; --warn-soft:#fbeeda;
+  --good:#1f6b4d; --good-soft:#ddf0e6;
+  --shadow:0 1px 2px rgba(20,32,44,.06),0 4px 14px rgba(20,32,44,.05);
+  --f-disp:"IBM Plex Sans Condensed",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0e161e; --surface:#16212c; --surface-2:#1c2933; --surface-3:#22303c;
+  --ink:#e6edf4; --ink-2:#a3b4c4; --ink-3:#6d8093;
+  --line:#2a3946; --line-2:#3a4c5c;
+  --accent:#61a8e0; --accent-soft:#14314b; --accent-ink:#9ccbf0;
+  --critical:#f0707e; --critical-soft:#3d1a20;
+  --warn:#e0a458; --warn-soft:#3a2a14;
+  --good:#6ac295; --good-soft:#143025;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --paper:#0e161e; --surface:#16212c; --surface-2:#1c2933; --surface-3:#22303c;
+  --ink:#e6edf4; --ink-2:#a3b4c4; --ink-3:#6d8093;
+  --line:#2a3946; --line-2:#3a4c5c;
+  --accent:#61a8e0; --accent-soft:#14314b; --accent-ink:#9ccbf0;
+  --critical:#f0707e; --critical-soft:#3d1a20;
+  --warn:#e0a458; --warn-soft:#3a2a14;
+  --good:#6ac295; --good-soft:#143025;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.55;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1280px;margin:0 auto;padding:22px 20px 56px}
+
+/* ---------- header ---------- */
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  padding-bottom:14px;border-bottom:2px solid var(--ink);margin-bottom:18px}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-disp);font-weight:700;font-size:30px;letter-spacing:-.015em;margin:0;line-height:1}
+.brand .tag{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--accent);border:1px solid var(--accent);border-radius:2px;padding:2px 6px}
+.sub{color:var(--ink-2);max-width:62ch;margin:6px 0 0;font-size:13.5px}
+.themer{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--surface);border:1px solid var(--line-2);color:var(--ink-2);border-radius:3px;
+  padding:6px 10px;cursor:pointer}
+.themer:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ---------- scenario bar ---------- */
+.scenarios{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
+.scn{font-family:var(--f-body);font-size:12.5px;background:var(--surface);color:var(--ink-2);
+  border:1px solid var(--line-2);border-radius:3px;padding:7px 11px;cursor:pointer;text-align:left}
+.scn:hover{border-color:var(--accent);color:var(--accent)}
+.scn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+:root[data-theme="dark"] .scn[aria-pressed="true"],
+:root:not([data-theme="light"]) .scn[aria-pressed="true"]{color:#0e161e}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .scn[aria-pressed="true"]{color:#fff}}
+
+/* ---------- layout ---------- */
+.console{display:grid;grid-template-columns:288px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:940px){.console{grid-template-columns:1fr}}
+
+/* ---------- roster rail ---------- */
+.rail{background:var(--surface);border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow);
+  position:sticky;top:16px}
+@media (max-width:940px){.rail{position:static}}
+.rail h2,.panel h2{font-family:var(--f-disp);font-weight:600;font-size:12px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin:0;padding:12px 14px;border-bottom:1px solid var(--line)}
+.rail h2 span{float:right;font-family:var(--f-mono);color:var(--accent)}
+.agent{display:grid;grid-template-columns:16px 1fr;gap:9px;padding:9px 14px;border-bottom:1px solid var(--line);
+  align-items:start}
+.agent:last-child{border-bottom:0}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--line-2);margin-top:5px;flex:none;
+  transition:background .25s,box-shadow .25s}
+.agent.woken .dot{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.agent.reported .dot{background:var(--good);box-shadow:0 0 0 3px var(--good-soft)}
+.agent.failed .dot{background:var(--critical);box-shadow:0 0 0 3px var(--critical-soft)}
+.agent .nm{font-family:var(--f-disp);font-weight:600;font-size:13.5px;color:var(--ink-3);line-height:1.25}
+.agent.woken .nm,.agent.reported .nm,.agent.failed .nm{color:var(--ink)}
+.agent .rl{font-family:var(--f-mono);font-size:10px;letter-spacing:.04em;color:var(--ink-3);
+  text-transform:uppercase;margin-top:2px}
+.agent .md{font-size:11.5px;color:var(--ink-3);margin-top:4px;display:none}
+.agent.reported .md,.agent.woken .md{display:block;color:var(--ink-2)}
+
+/* ---------- panels ---------- */
+.stack{display:flex;flex-direction:column;gap:18px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow);
+  overflow:hidden}
+.panel .body{padding:14px}
+.ask{font-family:var(--f-disp);font-size:19px;font-weight:600;line-height:1.3;text-wrap:balance;margin:0 0 4px}
+.askmeta{font-family:var(--f-mono);font-size:11px;color:var(--ink-3);letter-spacing:.03em}
+
+/* routing strip */
+.routing{display:flex;gap:7px;flex-wrap:wrap;padding:11px 14px;background:var(--surface-2);
+  border-bottom:1px solid var(--line)}
+.chip{font-family:var(--f-mono);font-size:11px;padding:3px 8px;border-radius:2px;
+  background:var(--accent-soft);color:var(--accent-ink);border:1px solid transparent;white-space:nowrap}
+.chip.n{background:transparent;color:var(--ink-3);border-color:var(--line-2)}
+
+/* findings */
+.finding{border-bottom:1px solid var(--line);padding:13px 14px;display:grid;
+  grid-template-columns:3px 1fr;gap:12px}
+.finding:last-child{border-bottom:0}
+.finding .stripe{background:var(--accent);border-radius:2px}
+.finding.warn .stripe{background:var(--warn)}
+.finding.bad .stripe{background:var(--critical)}
+.finding.good .stripe{background:var(--good)}
+.fhead{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:3px}
+.fname{font-family:var(--f-disp);font-weight:600;font-size:14.5px}
+.frole{font-family:var(--f-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.ftext{color:var(--ink-2);font-size:13.5px}
+.ftext b{color:var(--ink);font-family:var(--f-mono);font-weight:500;font-variant-numeric:tabular-nums}
+
+/* metric tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(116px,1fr));gap:1px;background:var(--line);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.tile{background:var(--surface);padding:10px 12px}
+.tile .k{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.tile .v{font-family:var(--f-mono);font-size:19px;font-weight:500;font-variant-numeric:tabular-nums;
+  margin-top:2px;letter-spacing:-.02em}
+.tile .v.bad{color:var(--critical)}.tile .v.good{color:var(--good)}.tile .v.warn{color:var(--warn)}
+.tile .n{font-size:11px;color:var(--ink-3);margin-top:1px}
+
+/* brief */
+.brief .body{padding:0}
+.bsec{padding:11px 14px;border-bottom:1px solid var(--line)}
+.bsec:last-of-type{border-bottom:0}
+.bsec .k{font-family:var(--f-mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:3px}
+.bsec p{margin:0;font-size:13.5px;color:var(--ink-2)}
+.bsec.risk .k{color:var(--critical)}
+.bsec.risk p{color:var(--ink)}
+.decide{display:flex;gap:8px;padding:12px 14px;background:var(--surface-2);border-top:1px solid var(--line);
+  flex-wrap:wrap;align-items:center}
+.btn{font-family:var(--f-body);font-size:13px;font-weight:500;border-radius:3px;padding:7px 14px;
+  cursor:pointer;border:1px solid var(--line-2);background:var(--surface);color:var(--ink)}
+.btn:hover{border-color:var(--ink-3)}
+.btn.ok{background:var(--good);border-color:var(--good);color:#fff}
+.btn.no{border-color:var(--critical);color:var(--critical)}
+.btn.ok:hover{filter:brightness(1.08)}
+.decided{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2)}
+
+/* network diagram */
+.netwrap{overflow-x:auto;padding:6px 14px 14px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:0 14px 11px;font-family:var(--f-mono);
+  font-size:10.5px;color:var(--ink-3);letter-spacing:.03em}
+.legend i{display:inline-block;width:15px;height:2px;vertical-align:middle;margin-right:5px}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-family:var(--f-mono);font-size:12px;
+  font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+th{text-align:right;font-weight:500;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-3);padding:7px 9px;border-bottom:1px solid var(--line-2);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+tr.crit td{background:var(--critical-soft);color:var(--ink)}
+tr.crit td:first-child{font-weight:600;color:var(--critical)}
+.pill{font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;padding:1px 5px;border-radius:2px;
+  background:var(--surface-3);color:var(--ink-2)}
+.pill.c{background:var(--critical-soft);color:var(--critical)}
+
+/* audit */
+.audit{font-family:var(--f-mono);font-size:11.5px;max-height:180px;overflow:auto;padding:10px 14px;
+  background:var(--surface-2);color:var(--ink-2);line-height:1.7}
+.audit .t{color:var(--ink-3)}
+.audit .e{color:var(--accent)}
+.foot{margin-top:24px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div>
+    <div class="brand">
+      <h1>Tarteeb</h1>
+      <span class="tag">10 specialist agents</span>
+    </div>
+    <p class="sub">A project-management copilot that lives in the channel where the team already works.
+      A router wakes only the specialists a question needs; deterministic engines do every calculation;
+      an Executive Orchestrator consolidates. The AI advises &mdash; a human decides, and the decision is logged.</p>
+  </div>
+  <button class="themer" id="themer" type="button">Theme</button>
+</header>
+
+<div class="scenarios" id="scenarios"></div>
+
+<div class="console">
+  <aside class="rail">
+    <h2>Specialist roster <span id="rosterCount">0/10</span></h2>
+    <div id="roster"></div>
+  </aside>
+
+  <div class="stack">
+    <section class="panel">
+      <div class="routing" id="routing"></div>
+      <div class="body">
+        <p class="ask" id="ask"></p>
+        <div class="askmeta" id="askmeta"></div>
+      </div>
+      <div class="tiles" id="tiles"></div>
+      <div id="findings"></div>
+    </section>
+
+    <section class="panel" id="vizPanel" hidden>
+      <h2 id="vizTitle">Network diagram</h2>
+      <div class="legend" id="vizLegend"></div>
+      <div class="netwrap" id="viz"></div>
+    </section>
+
+    <section class="panel brief">
+      <h2>Executive brief</h2>
+      <div class="body" id="brief"></div>
+      <div class="decide">
+        <button class="btn ok" data-d="Approved" type="button">Approve</button>
+        <button class="btn" data-d="Flagged for discussion" type="button">Discuss</button>
+        <button class="btn no" data-d="Rejected" type="button">Reject</button>
+        <span class="decided" id="decided">No decision recorded yet.</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Audit trail &mdash; append-only</h2>
+      <div class="audit" id="audit"></div>
+    </section>
+  </div>
+</div>
+
+<div class="foot">
+  <span>CTRL+ALT+DEFEAT &middot; Agents, Everywhere &middot; AI Tinkerers Abu Dhabi</span>
+  <span>Every figure computed in-page by the same deterministic engines the Slack app runs.</span>
+</div>
+</div>
+
+<script>
+/* ============================ ENGINES ============================ */
+/* Ports of engines/*.py. No LLM touches a number on this page. */
+
+function cpm(tasks){
+  const T={}; tasks.forEach(t=>T[t.id]={...t,preds:t.predecessors||[],succ:[]});
+  Object.values(T).forEach(t=>t.preds.forEach(p=>T[p]&&T[p].succ.push(t.id)));
+  const indeg={},order=[];Object.keys(T).forEach(k=>indeg[k]=T[k].preds.length);
+  let q=Object.keys(indeg).filter(k=>!indeg[k]).sort();
+  while(q.length){q.sort();const n=q.shift();order.push(n);
+    T[n].succ.forEach(m=>{if(--indeg[m]===0)q.push(m)})}
+  order.forEach(id=>{const t=T[id];
+    t.es=t.preds.length?Math.max(...t.preds.map(p=>T[p].ef)):0; t.ef=t.es+t.duration});
+  const dur=Math.max(...Object.values(T).map(t=>t.ef));
+  [...order].reverse().forEach(id=>{const t=T[id];
+    t.lf=t.succ.length?Math.min(...t.succ.map(s=>T[s].ls)):dur; t.ls=t.lf-t.duration});
+  Object.values(T).forEach(t=>{t.tf=+(t.ls-t.es).toFixed(6);
+    t.ff=+((t.succ.length?Math.min(...t.succ.map(s=>T[s].es)):dur)-t.ef).toFixed(6);
+    t.crit=Math.abs(t.tf)<1e-9});
+  const crit=new Set(order.filter(id=>T[id].crit));
+  const starts=[...crit].filter(id=>!T[id].preds.some(p=>crit.has(p))).sort();
+  const paths=[]; const stack=starts.map(s=>[s]);
+  while(stack.length){const pth=stack.pop();
+    const nx=T[pth[pth.length-1]].succ.filter(s=>crit.has(s)).sort();
+    if(!nx.length)paths.push(pth); else nx.forEach(n=>stack.push(pth.concat(n)))}
+  paths.sort();
+  return{duration:dur,path:paths[0]||[],paths,parallel:paths.length>1,
+    tasks:order.map(id=>T[id]),map:T};
+}
+function scoring(criteria,options){
+  const tw=criteria.reduce((a,c)=>a+c.weight,0), warn=[];
+  if(Math.abs(tw-100)>0.01)warn.push(`Criterion weights total ${tw}, not 100 \u2014 scores are normalised.`);
+  const ranked=options.map(o=>({option:o.name,
+    score:+criteria.reduce((a,c)=>a+(o.scores[c.name]||0)*(c.weight/tw),0).toFixed(2)}))
+    .sort((a,b)=>b.score-a.score);
+  return{ranked,warnings:warn};
+}
+function evm(pv,ev,ac,bac,plannedDuration){
+  const cpi=ac?ev/ac:null, spi=pv?ev/pv:null, eac=cpi?bac/cpi:null;
+  return{pv,ev,ac,bac,cv:ev-ac,sv:ev-pv,cpi,spi,eac,etc:eac!==null?eac-ac:null,
+    vac:eac!==null?bac-eac:null,
+    tcpiBac:(bac-ac)!==0?(bac-ev)/(bac-ac):null,
+    estDuration:(plannedDuration&&spi)?plannedDuration/spi:null,
+    plannedDuration:plannedDuration||null, pct:+(ev/bac*100).toFixed(2)};
+}
+function finance(costs,benefits,rate,startYear){
+  startYear=startYear||0; const n=Math.max(costs.length,benefits.length);
+  let cc=0,cb=0,pay=null,rows=[];
+  for(let t=0;t<n;t++){
+    const f=1/Math.pow(1+rate,t+startYear), c=(costs[t]||0)*f, b=(benefits[t]||0)*f;
+    const prev=cb-cc; cc+=c; cb+=b; const gap=cb-cc;
+    if(pay===null&&gap>=0) pay=(t===0||prev===gap)?t+startYear:(t+startYear-1)+(-prev/(gap-prev));
+    rows.push({year:t+startYear,factor:f,dc:c,db:b,cum:gap});
+  }
+  const tdc=rows.reduce((a,r)=>a+r.dc,0), tdb=rows.reduce((a,r)=>a+r.db,0);
+  return{rows,totalCost:tdc,totalBenefit:tdb,npv:tdb-tdc,roi:tdc?(tdb-tdc)/tdc:null,payback:pay,rate};
+}
+function pert(acts,target,unit){
+  let e=0,v=0; const rows=acts.map(a=>{
+    const ex=(a.optimistic+4*a.most_likely+a.pessimistic)/6, sd=(a.pessimistic-a.optimistic)/6;
+    e+=ex; v+=sd*sd; return{...a,expected:ex,sd:sd}});
+  const psd=Math.sqrt(v);
+  const phi=z=>{const t=1/(1+.2316419*Math.abs(z)),d=.3989423*Math.exp(-z*z/2),
+    p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p};
+  return{rows,expected:e,sd:psd,unit:unit||'days',target:target??null,
+    r95:[e-2*psd,e+2*psd], prob:target!=null?(psd?phi((target-e)/psd):(target>=e?1:0)):null};
+}
+function crash(tasks,target){
+  const work=tasks.map(t=>({...t})), byId={}; work.forEach(t=>byId[t.id]=t);
+  const cr={}; work.forEach(t=>{if(t.crash_duration!=null){
+    const room=t.duration-t.crash_duration;
+    if(room>0)cr[t.id]={cd:t.crash_duration,per:(t.crash_cost-t.normal_cost)/room}}});
+  const base=cpm(work), baseDur=base.duration; let cost=0,steps=[],guard=0;
+  while(guard++<400){
+    const cur=cpm(work); if(target!=null&&cur.duration<=target)break;
+    const cand=cur.tasks.filter(t=>t.crit&&cr[t.id]&&byId[t.id].duration>cr[t.id].cd).map(t=>t.id);
+    if(!cand.length)break;
+    const eff=cand.filter(id=>{byId[id].duration--;const d=cpm(work).duration;byId[id].duration++;
+      return d<cur.duration});
+    let chosen;
+    if(eff.length) chosen=[eff.reduce((a,b)=>cr[a].per<=cr[b].per?a:b)];
+    else{ chosen=[cand.reduce((a,b)=>cr[a].per<=cr[b].per?a:b)] }
+    chosen.forEach(id=>byId[id].duration--);
+    const nd=cpm(work).duration;
+    if(nd>=cur.duration){ chosen.forEach(id=>byId[id].duration++);
+      steps.push({stopped:'Remaining critical path has no crashable activity \u2014 further spend buys no time. Not charged.'});break}
+    cost+=chosen.reduce((a,id)=>a+cr[id].per,0);
+    steps.push({ids:chosen,from:cur.duration,to:nd,cum:cost});
+  }
+  const fin=cpm(work);
+  return{baseDur,baseline:base.path,finalDur:fin.duration,finalPath:fin.path,
+    finalPaths:fin.paths,finalParallel:fin.parallel,
+    saved:baseDur-fin.duration,cost,per:(baseDur-fin.duration)?cost/(baseDur-fin.duration):null,steps,
+    reached:target==null||fin.duration<=target,target};
+}
+function fastTrack(tasks,frac){
+  frac=frac||0.5; const r=cpm(tasks), out=[];
+  r.tasks.filter(t=>t.crit).forEach(t=>t.preds.forEach(p=>{
+    if(r.map[p]&&r.map[p].crit) out.push({pred:r.map[p].name,succ:t.name,
+      save:+(Math.min(r.map[p].duration,t.duration)*frac).toFixed(2)})}));
+  out.sort((a,b)=>b.save-a.save); return{candidates:out,path:r.path,duration:r.duration};
+}
+function wbs(items){
+  const N={}; items.forEach(i=>N[i.id]={...i,children:[]});
+  const orph=[]; Object.values(N).forEach(n=>{if(n.parent){N[n.parent]?N[n.parent].children.push(n.id):orph.push(n)}});
+  const roll={},f=id=>{if(roll[id]!=null)return roll[id];const n=N[id];
+    roll[id]=n.children.length?n.children.reduce((a,c)=>a+f(c),0):(n.value||0);return roll[id]};
+  const roots=Object.values(N).filter(n=>!n.parent||!N[n.parent]).map(n=>n.id); roots.forEach(f);
+  const viol=[]; Object.values(N).forEach(n=>{ if(!n.children.length||n.value==null)return;
+    const ct=n.children.reduce((a,c)=>a+roll[c],0);
+    if(Math.abs(ct-n.value)>Math.max(.01,Math.abs(n.value)*.01))
+      viol.push({name:n.name,stated:n.value,children:ct,diff:ct-n.value})});
+  const leaves=Object.values(N).filter(n=>!n.children.length);
+  return{count:items.length,packages:leaves,rollup:roll,
+    total:roots.reduce((a,r)=>a+roll[r],0),violations:viol,orphans:orph};
+}
+function scopeCreep(baseline,current){
+  const B={},C={}; baseline.forEach(r=>B[r.id]=r); current.forEach(r=>C[r.id]=r);
+  const added=current.filter(r=>!B[r.id]), removed=baseline.filter(r=>!C[r.id]);
+  const changed=current.filter(r=>B[r.id]&&B[r.id].value!=null&&r.value!=null&&B[r.id].value!==r.value)
+    .map(r=>({name:r.name,from:B[r.id].value,to:r.value}));
+  const bt=baseline.reduce((a,r)=>a+(r.value||0),0), ct=current.reduce((a,r)=>a+(r.value||0),0);
+  return{added,removed,changed,baselineTotal:bt,currentTotal:ct,growth:ct-bt,
+    pct:bt?(ct-bt)/bt*100:null};
+}
+const EST_TYPES={rom:[-.5,1,'Very early, often 3\u20135 years out or before the project is officially started'],
+  budgetary:[-.1,.25,'Early, 1\u20132 years out'],definitive:[-.05,.1,'Later, less than a year out']};
+function estimateBand(est,type,budget){
+  const [lo,hi,when]=EST_TYPES[type];
+  const L=est*(1+lo),H=est*(1+hi);
+  return{est,type,lo,hi,low:L,high:H,when,budget:budget??null,
+    within:budget!=null?(budget>=L&&budget<=H):null};
+}
+
+/* ============================ ROSTER ============================ */
+const ROSTER=[
+  {k:'schedule',   n:'Critical Path Analyst',      r:'Schedule',    m:'When the project actually finishes, and which tasks drive that date.'},
+  {k:'crashing',   n:'Schedule Recovery Analyst',  r:'Compression', m:'The cheapest way to buy back time when the date has to move in.'},
+  {k:'fast_track', n:'Fast-Track Analyst',         r:'Compression', m:'Which sequential work could overlap when there is no budget to crash.'},
+  {k:'cost',       n:'Earned Value Analyst',       r:'Cost control',m:'Cost and schedule performance against baseline, and where it lands.'},
+  {k:'financial',  n:'Business Case Analyst',      r:'Investment',  m:'Whether the project is worth doing at all \u2014 NPV, ROI, payback.'},
+  {k:'pert',       n:'Estimation Analyst',         r:'Estimating',  m:'Uncertain estimates into an expected figure, a spread, and odds.'},
+  {k:'estimate',   n:'Estimate Assurance Analyst', r:'Estimating',  m:'Holds an estimate to the accuracy its type actually supports.'},
+  {k:'wbs',        n:'Scope Architect',            r:'Scope',       m:'Whether the breakdown holds together and accounts for all the work.'},
+  {k:'scope_creep',n:'Baseline Guardian',          r:'Scope',       m:'What changed against the approved baseline without a change request.'},
+  {k:'scoring',    n:'Options Analyst',            r:'Decision',    m:'The weighted decision matrix \u2014 and when a winner is really a tie.'},
+];
+const BY=Object.fromEntries(ROSTER.map(a=>[a.k,a]));
+
+/* ============================ PROJECT X DATA ============================ */
+/* Figure 6-2 network: duration 16 days, critical path B-E-H-J, task F holds 7 days of float. */
+const TASKS=[
+ {id:'A',name:'Requirements sign-off',duration:1,predecessors:[]},
+ {id:'B',name:'System design',duration:2,predecessors:[],crash_duration:1,normal_cost:1000,crash_cost:1800},
+ {id:'C',name:'Vendor selection',duration:3,predecessors:[]},
+ {id:'D',name:'Data migration',duration:4,predecessors:['A']},
+ {id:'E',name:'Backend build',duration:5,predecessors:['B'],crash_duration:3,normal_cost:2000,crash_cost:2600},
+ {id:'F',name:'Documentation',duration:4,predecessors:['B']},
+ {id:'G',name:'Hardware install',duration:6,predecessors:['C']},
+ {id:'H',name:'Integration testing',duration:6,predecessors:['D','E'],crash_duration:4,normal_cost:3000,crash_cost:5000},
+ {id:'I',name:'Staff training',duration:2,predecessors:['G']},
+ {id:'J',name:'Go-live',duration:3,predecessors:['F','H','I'],crash_duration:2,normal_cost:500,crash_cost:1400},
+];
+const WBS_BASE=[
+ {id:'1',name:'Registration system',value:120000},
+ {id:'1.1',name:'Analysis',parent:'1',value:30000},
+ {id:'1.2',name:'Build',parent:'1',value:60000},
+ {id:'1.3',name:'Testing',parent:'1',value:30000},
+];
+const WBS_NOW=[...WBS_BASE.map(r=>({...r})),
+ {id:'1.4',name:'Mobile companion app',parent:'1',value:26000},
+ {id:'1.5',name:'Single sign-on',parent:'1',value:9000}];
+
+/* ============================ SCENARIOS ============================ */
+const SCEN=[
+ {id:'sched',label:'When does Project X finish?',
+  ask:'When does Project X actually finish, and where is the slack?',
+  src:'/pm in #project-x',wake:['schedule'],
+  run(){const r=cpm(TASKS);return{schedule:r}}},
+
+ {id:'recover',label:'Can we hit day 13?',
+  ask:'The steering committee wants Project X live by day 13. Can we do it, and what does it cost?',
+  src:'@Tarteeb in #project-x',wake:['schedule','crashing','fast_track'],
+  run(){return{schedule:cpm(TASKS),crashing:crash(TASKS,13),fast_track:fastTrack(TASKS,.5)}}},
+
+ {id:'vendor',label:'Which vendor do we pick?',
+  ask:'We need to choose between four vendors on cost, quality, delivery, support and risk.',
+  src:'/pm in #project-x',wake:['scoring'],
+  run(){return{scoring:scoring(
+    [{name:'Cost',weight:30},{name:'Quality',weight:20},{name:'Delivery',weight:30},
+     {name:'Support',weight:10},{name:'Risk',weight:10}],
+    [{name:'Option #1',scores:{Cost:100,Quality:90,Delivery:40,Support:70,Risk:50}},
+     {name:'Option #2',scores:{Cost:100,Quality:100,Delivery:20,Support:10,Risk:10}},
+     {name:'Option #3',scores:{Cost:80,Quality:95,Delivery:10,Support:20,Risk:20}},
+     {name:'Option #4',scores:{Cost:10,Quality:95,Delivery:100,Support:100,Risk:100}}])}}},
+
+ {id:'budget',label:'How are we tracking on budget?',
+  ask:'Six months in on a twelve-month plan \u2014 how is Project X tracking on cost and schedule?',
+  src:'/pm in #project-x',wake:['cost'],
+  run(){return{cost:evm(42000,35000,41000,120000,12)}}},
+
+ {id:'worth',label:'Is this worth doing?',
+  ask:'Before we commit: is Project X worth doing at an 8% discount rate?',
+  src:'@Tarteeb in #steering',wake:['financial','estimate'],
+  run(){return{financial:finance([120000,25000,25000,25000,25000],[0,90000,110000,120000,130000],.08,0),
+    estimate:estimateBand(120000,'budgetary',110000)}}},
+
+ {id:'confidence',label:'How firm is the estimate?',
+  ask:'The build estimate keeps moving. How confident are we in finishing the remaining work in 20 days?',
+  src:'/pm in #project-x',wake:['pert'],
+  run(){return{pert:pert([
+    {id:'E',name:'Backend build',optimistic:4,most_likely:5,pessimistic:12},
+    {id:'H',name:'Integration testing',optimistic:4,most_likely:6,pessimistic:14},
+    {id:'J',name:'Go-live',optimistic:2,most_likely:3,pessimistic:6}],20,'days')}}},
+
+ {id:'scope',label:'Has the scope grown?',
+  ask:'Two new asks landed this sprint. Has Project X grown since the board approved it?',
+  src:'CSV dropped in #project-x',wake:['wbs','scope_creep'],
+  run(){return{wbs:wbs(WBS_NOW),scope_creep:scopeCreep(WBS_BASE,WBS_NOW)}}},
+
+ {id:'all',label:'Full steering review',
+  ask:'Full review before the steering committee: schedule, cost, scope and the vendor decision.',
+  src:'/pm in #steering',wake:['schedule','crashing','cost','scoring','wbs','scope_creep'],
+  run(){return{schedule:cpm(TASKS),crashing:crash(TASKS,13),cost:evm(42000,35000,41000,120000,12),
+    scoring:SCEN.find(s=>s.id==='vendor').run().scoring,wbs:wbs(WBS_NOW),
+    scope_creep:scopeCreep(WBS_BASE,WBS_NOW)}}},
+];
+
+/* ============================ FINDINGS ============================ */
+const money=n=>(n<0?'-':'')+'$'+Math.abs(Math.round(n)).toLocaleString();
+const num=n=>(+n).toLocaleString(undefined,{maximumFractionDigits:2});
+const M=s=>`<b>${s}</b>`;
+
+const FINDING={
+ schedule(r){const slack=r.tasks.filter(t=>!t.crit);
+  const w=slack.reduce((a,b)=>a.tf>b.tf?a:b,slack[0]);
+  return{tone:'',text:`The project runs ${M(r.duration+' days')}. ${r.parallel
+      ? `${M(r.paths.length+' paths')} are critical at once (${r.paths.map(p=>p.join(' \u2192 ')).join('; ')})`
+      : `The critical path is ${M(r.path.join(' \u2192 '))}`} \u2014 every day lost on those tasks is a day lost on the project.
+    The most flexible task is ${w.name}, holding ${M(w.tf+' days')} of total float.`}},
+ crashing(r){ if(!r.saved)return{tone:'warn',text:'The schedule cannot be bought shorter: no critical activity has crash room left.'};
+  return{tone:r.reached?'good':'warn',text:`The schedule can be compressed from ${M(r.baseDur+' days')} to
+    ${M(r.finalDur+' days')} \u2014 ${M(r.saved+' days')} saved for ${M(money(r.cost))},
+    about ${M(money(r.per)+'/day')}. ${r.finalParallel
+      ? `After compressing, ${M(r.finalPaths.length+' paths')} are critical at once
+         (${r.finalPaths.map(p=>M(p.join(' \u2192 '))).join('; ')}) \u2014 every one of them now has to hold,
+         so there is no slack left anywhere to absorb a slip.`
+      : `After compressing, the critical path becomes ${M(r.finalPath.join(' \u2192 '))}.`}
+    ${r.reached?'':`The ${r.target}-day target is <strong>not</strong> reachable with money alone \u2014 that needs scope cut or fast tracking.`}`}},
+ fast_track(r){ if(!r.candidates.length)return{tone:'',text:'No sequential critical-path activities available to overlap.'};
+  const b=r.candidates[0];
+  return{tone:'warn',text:`The best overlap is ${M(b.pred)} with ${M(b.succ)}, worth up to ${M(b.save+' days')}.
+    This buys time with risk rather than money: starting the second before the first finishes means working
+    from unfinished input, which is the classic cause of rework.`}},
+ cost(r){return{tone:r.cpi<1?'bad':'good',text:`CPI is ${M(r.cpi.toFixed(2))} and SPI is ${M(r.spi.toFixed(2))} \u2014 the project has
+    earned ${M(money(r.ev))} of value against ${M(money(r.ac))} spent. At the current burn the estimate at
+    completion is ${M(money(r.eac))} against a ${M(money(r.bac))} budget (${M(money(r.vac))}).
+    To still land on budget the remaining work must run at a TCPI of ${M(r.tcpiBac.toFixed(2))} \u2014
+    well above the ${r.cpi.toFixed(2)} achieved so far. On schedule performance the forecast is
+    ${M(r.estDuration.toFixed(1)+' months')} against ${r.plannedDuration} planned.`}},
+ financial(r){return{tone:r.npv>0?'good':'bad',text:`At a ${M((r.rate*100).toFixed(0)+'%')} discount rate the net present value is
+    ${M(money(r.npv))} on ${M(money(r.totalCost))} of discounted cost \u2014 an ROI of ${M((r.roi*100).toFixed(1)+'%')},
+    paying back in ${M(r.payback!=null?'year '+r.payback.toFixed(2):'never, within the years given')}.`}},
+ pert(r){return{tone:r.prob!=null&&r.prob<.5?'bad':'warn',text:`The three-point expectation is
+    ${M(r.expected.toFixed(1)+' '+r.unit)} with a standard deviation of ${M(r.sd.toFixed(1))};
+    95% of outcomes fall between ${M(r.r95[0].toFixed(1))} and ${M(r.r95[1].toFixed(1))}.
+    The chance of coming in within ${M(r.target+' '+r.unit)} is ${M((r.prob*100).toFixed(0)+'%')}
+    ${r.prob<.5?'\u2014 below an even chance, so that target is optimistic against these estimates.':'.'}`}},
+ estimate(r){return{tone:r.within?'warn':'bad',text:`That is a ${M(r.type.toUpperCase())} estimate, carrying a
+    ${M((r.lo*100).toFixed(0)+'%')} to ${M('+'+(r.hi*100).toFixed(0)+'%')} range \u2014 ${M(money(r.est))} honestly
+    means ${M(money(r.low))} to ${M(money(r.high))}. The ${M(money(r.budget))} budget
+    ${r.within?'falls inside that range, which is the floor of what it can tell you.':'sits outside that range and is not defensible against this estimate.'}`}},
+ wbs(r){ if(r.violations.length){const v=r.violations[0];
+    return{tone:'bad',text:`The breakdown does not add up: ${M(v.name)} states ${M(money(v.stated))} but its
+      children total ${M(money(v.children))} (${M((v.diff>0?'+':'')+money(v.diff))}).
+      ${r.packages.length} work packages in total.`}}
+  return{tone:'good',text:`The breakdown is internally consistent: ${M(r.packages.length+' work packages')}
+    rolling up to ${M(money(r.total))}.`}},
+ scope_creep(r){ if(!r.added.length&&!r.removed.length&&!r.changed.length)
+    return{tone:'good',text:'The current breakdown matches the approved baseline \u2014 no scope change.'};
+  return{tone:'bad',text:`Against the approved baseline: ${M(r.added.length+' item(s) added')}
+    (${r.added.map(a=>a.name).join(', ')})${r.removed.length?', '+r.removed.length+' removed':''}.
+    Total moved ${M((r.growth>0?'+':'')+money(r.growth))} \u2014 ${M((r.pct>0?'+':'')+r.pct.toFixed(1)+'%')} against
+    baseline. Anything added without an approved change request is scope creep.`}},
+ scoring(r){const t=r.ranked[0],s=r.ranked[1],gap=t.score-s.score;
+  return{tone:gap<5?'warn':'good',text:`${M(t.option)} ranks first on the weighted criteria with ${M(t.score)}.
+    ${gap<5?`But ${M(s.option)} scores ${M(s.score)} \u2014 a gap of ${M(gap.toFixed(2))} points is inside the noise
+    of the weights, so this is effectively a tie and should not be decided on the score alone.`
+    :`${s.option} follows at ${M(s.score)}, ${M(gap.toFixed(2))} points back.`}`}},
+};
+
+/* ============================ TILES ============================ */
+function tilesFor(out){
+  const t=[];
+  if(out.schedule)t.push({k:'Duration',v:out.schedule.duration+'d',n:'critical path '+out.schedule.path.join('-')});
+  if(out.crashing&&out.crashing.saved)t.push({k:'Compressed to',v:out.crashing.finalDur+'d',
+    n:money(out.crashing.cost)+' to save '+out.crashing.saved+'d',c:out.crashing.reached?'good':'warn'});
+  if(out.cost){t.push({k:'CPI',v:out.cost.cpi.toFixed(2),n:'cost performance',c:out.cost.cpi<1?'bad':'good'});
+    t.push({k:'SPI',v:out.cost.spi.toFixed(2),n:'schedule performance',c:out.cost.spi<1?'bad':'good'});
+    t.push({k:'EAC',v:money(out.cost.eac),n:money(out.cost.vac)+' vs budget',c:out.cost.vac<0?'bad':'good'})}
+  if(out.financial){t.push({k:'NPV',v:money(out.financial.npv),n:(out.financial.rate*100)+'% discount',
+      c:out.financial.npv>0?'good':'bad'});
+    t.push({k:'ROI',v:(out.financial.roi*100).toFixed(0)+'%',n:'on discounted cost',c:out.financial.roi>0?'good':'bad'});
+    t.push({k:'Payback',v:out.financial.payback!=null?'yr '+out.financial.payback.toFixed(1):'never',n:'discounted'})}
+  if(out.pert){t.push({k:'Expected',v:out.pert.expected.toFixed(1)+'d',n:'\u00b1'+out.pert.sd.toFixed(1)+' sd'});
+    t.push({k:'P(hit target)',v:(out.pert.prob*100).toFixed(0)+'%',n:'within '+out.pert.target+' days',
+      c:out.pert.prob<.5?'bad':'good'})}
+  if(out.scoring){const r=out.scoring.ranked;t.push({k:'Top option',v:r[0].option.replace('Option ',''),
+    n:r[0].score+' vs '+r[1].score,c:(r[0].score-r[1].score)<5?'warn':'good'})}
+  if(out.scope_creep)t.push({k:'Scope vs baseline',v:(out.scope_creep.pct>0?'+':'')+out.scope_creep.pct.toFixed(1)+'%',
+    n:money(out.scope_creep.growth)+' added',c:out.scope_creep.growth>0?'bad':'good'});
+  if(out.estimate)t.push({k:'Estimate range',v:money(out.estimate.low)+'\u2013'+money(out.estimate.high),
+    n:out.estimate.type.toUpperCase()+' accuracy band'});
+  return t;
+}
+
+/* ============================ BRIEF ============================ */
+function buildBrief(scn,out){
+  const risks=[],miss=[],next=[];
+  if(out.schedule)risks.push(`the finish date rests entirely on ${out.schedule.path.join('\u2013')}`);
+  if(out.crashing&&!out.crashing.reached)
+    risks.push(`the ${out.crashing.target}-day target cannot be bought with money alone`);
+  if(out.cost&&out.cost.cpi<1&&out.cost.spi<1)
+    risks.push(`the project is over budget and behind schedule at once, forecasting ${money(out.cost.eac)} against ${money(out.cost.bac)}`);
+  if(out.scoring){const r=out.scoring.ranked;if(r[0].score-r[1].score<5)
+    risks.push(`${r[0].option} and ${r[1].option} are effectively tied, so the matrix cannot decide this on its own`)}
+  if(out.scope_creep&&out.scope_creep.added.length)
+    risks.push(`${out.scope_creep.added.length} item(s) entered scope after baseline, ${money(out.scope_creep.growth)} unapproved`);
+  if(out.wbs&&out.wbs.violations.length)
+    risks.push(`the work breakdown is short by ${money(Math.abs(out.wbs.violations[0].diff))} against its own parent`);
+  if(out.pert&&out.pert.prob<.5)
+    risks.push(`there is only a ${(out.pert.prob*100).toFixed(0)}% chance of hitting the ${out.pert.target}-day target`);
+  if(out.financial&&out.financial.npv>0)
+    risks.push(`the business case holds at ${money(out.financial.npv)} NPV, so the pressure is delivery, not justification`);
+
+  if(out.cost)miss.push('actual cost by WBS element, to locate the overrun rather than just size it');
+  if(out.scoring)miss.push('who set the criterion weights, since the ranking turns on them');
+  if(out.crashing)miss.push('crash costs for the tasks that currently have none');
+  if(out.scope_creep)miss.push('the change requests, if any, behind the new items');
+  if(!miss.length)miss.push('nothing material \u2014 the engines had what they needed');
+
+  if(out.crashing&&!out.crashing.reached)next.push('accept day '+out.crashing.finalDur);
+  if(out.crashing)next.push('fund '+money(out.crashing.cost)+' of compression');
+  if(out.fast_track&&out.fast_track.candidates.length)next.push('overlap '+out.fast_track.candidates[0].pred+' and '+out.fast_track.candidates[0].succ+' and carry the rework risk');
+  if(out.scoring)next.push('run a tie-break on the two leading options');
+  if(out.scope_creep&&out.scope_creep.added.length)next.push('send the new scope back as a change request');
+  if(out.cost&&!next.length)next.push('re-baseline against the forecast');
+  if(!next.length)next.push('proceed as planned');
+
+  const n=Object.keys(out).length;
+  return{
+   summary:`${n} specialist${n!==1?'s':''} reported on this. ${
+     out.cost&&out.cost.cpi<1?`Project X is over budget and behind schedule`:
+     out.schedule?`Project X currently runs ${out.schedule.duration} days`:
+     out.financial?`The business case is ${out.financial.npv>0?'sound':'not sound'}`:
+     `The analysis is complete`}, and the decision below is yours, not the copilot's.`,
+   risks:risks.length?risks.map(r=>r[0].toUpperCase()+r.slice(1)).join('. ')+'.':'Nothing stands out across the specialists that reported.',
+   missing:miss.join('; ')+'.',
+   next:next.slice(0,3).map((s,i)=>`${i+1}) ${s}`).join('  ')
+  };
+}
+
+/* ============================ NETWORK DIAGRAM ============================ */
+function drawNetwork(r){
+  const lvl={},T=r.map;
+  r.tasks.forEach(t=>{lvl[t.id]=t.preds.length?Math.max(...t.preds.map(p=>lvl[p]))+1:0});
+  const cols={}; Object.entries(lvl).forEach(([id,l])=>(cols[l]=cols[l]||[]).push(id));
+  const CW=132,CH=62,GX=48,GY=22,PAD=14;
+  const maxRow=Math.max(...Object.values(cols).map(c=>c.length));
+  const W=Object.keys(cols).length*(CW+GX)-GX+PAD*2, H=maxRow*(CH+GY)-GY+PAD*2;
+  const pos={};
+  Object.entries(cols).forEach(([l,ids])=>{const off=(maxRow-ids.length)*(CH+GY)/2;
+    ids.forEach((id,i)=>pos[id]={x:PAD+l*(CW+GX),y:PAD+off+i*(CH+GY)})});
+  let edges='',nodes='';
+  r.tasks.forEach(t=>t.preds.forEach(p=>{
+    const a=pos[p],b=pos[t.id],crit=T[p].crit&&t.crit;
+    const x1=a.x+CW,y1=a.y+CH/2,x2=b.x,y2=b.y+CH/2,mx=(x1+x2)/2;
+    edges+=`<path d="M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}" fill="none"
+      stroke="${crit?'var(--critical)':'var(--line-2)'}" stroke-width="${crit?2.2:1.3}"
+      marker-end="url(#${crit?'ac':'an'})"/>`}));
+  r.tasks.forEach(t=>{const p=pos[t.id];
+    nodes+=`<g>
+      <rect x="${p.x}" y="${p.y}" width="${CW}" height="${CH}" rx="3"
+        fill="${t.crit?'var(--critical-soft)':'var(--surface-2)'}"
+        stroke="${t.crit?'var(--critical)':'var(--line-2)'}" stroke-width="${t.crit?1.8:1}"/>
+      <text x="${p.x+9}" y="${p.y+18}" font-family="var(--f-mono)" font-size="12" font-weight="600"
+        fill="${t.crit?'var(--critical)':'var(--ink)'}">${t.id}</text>
+      <text x="${p.x+26}" y="${p.y+18}" font-family="var(--f-body)" font-size="10.5"
+        fill="var(--ink-2)">${t.name.length>17?t.name.slice(0,16)+'\u2026':t.name}</text>
+      <text x="${p.x+9}" y="${p.y+35}" font-family="var(--f-mono)" font-size="10"
+        fill="var(--ink-3)">ES ${t.es} \u00b7 EF ${t.ef}</text>
+      <text x="${p.x+9}" y="${p.y+50}" font-family="var(--f-mono)" font-size="10"
+        fill="${t.tf>0?'var(--warn)':'var(--ink-3)'}">${t.duration}d \u00b7 float ${t.tf}</text>
+    </g>`});
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
+    aria-label="Network diagram, critical path in red">
+    <defs>
+      <marker id="an" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+        <path d="M0 0 L7 3.5 L0 7 z" fill="var(--line-2)"/></marker>
+      <marker id="ac" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+        <path d="M0 0 L7 3.5 L0 7 z" fill="var(--critical)"/></marker>
+    </defs>${edges}${nodes}</svg>`;
+}
+function floatTable(r){
+  return `<div class="tablewrap"><table><thead><tr><th>Task</th><th>Dur</th><th>ES</th><th>EF</th>
+    <th>LS</th><th>LF</th><th>Free float</th><th>Total float</th><th></th></tr></thead><tbody>${
+    r.tasks.map(t=>`<tr class="${t.crit?'crit':''}"><td>${t.id} \u00b7 ${t.name}</td><td>${t.duration}</td>
+      <td>${t.es}</td><td>${t.ef}</td><td>${t.ls}</td><td>${t.lf}</td><td>${t.ff}</td><td>${t.tf}</td>
+      <td>${t.crit?'<span class="pill c">critical</span>':''}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+/* ============================ RENDER ============================ */
+let current=SCEN[0], audit=[];
+const $=id=>document.getElementById(id);
+
+function renderRoster(woken,reported){
+  $('roster').innerHTML=ROSTER.map(a=>{
+    const st=reported.includes(a.k)?'reported':woken.includes(a.k)?'woken':'';
+    return `<div class="agent ${st}"><span class="dot"></span><div>
+      <div class="nm">${a.n}</div><div class="rl">${a.r}${st==='reported'?' \u00b7 reported':st==='woken'?' \u00b7 woken':''}</div>
+      <div class="md">${a.m}</div></div></div>`}).join('');
+  $('rosterCount').textContent=`${reported.length}/10`;
+}
+function logAudit(ev,detail){
+  const t=new Date().toLocaleTimeString([], {hour12:false});
+  audit.unshift(`<span class="t">${t}</span>  <span class="e">${ev}</span>  ${detail}`);
+  $('audit').innerHTML=audit.join('<br>');
+}
+
+function run(scn){
+  current=scn; $('decided').textContent='No decision recorded yet.';
+  document.querySelectorAll('.scn').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.id===scn.id)));
+
+  $('ask').textContent=scn.ask;
+  $('askmeta').textContent=scn.src+'  \u00b7  router woke '+scn.wake.length+' of 10 specialists';
+  $('routing').innerHTML=ROSTER.map(a=>
+    `<span class="chip ${scn.wake.includes(a.k)?'':'n'}">${scn.wake.includes(a.k)?'\u25b8 ':''}${a.n}</span>`).join('');
+
+  const out=scn.run();
+  const keys=Object.keys(out);
+  renderRoster(scn.wake,[]);
+  setTimeout(()=>renderRoster(scn.wake,keys),220);
+
+  $('tiles').innerHTML=tilesFor(out).map(t=>
+    `<div class="tile"><div class="k">${t.k}</div><div class="v ${t.c||''}">${t.v}</div>
+     <div class="n">${t.n}</div></div>`).join('');
+
+  $('findings').innerHTML=keys.map(k=>{
+    const f=FINDING[k](out[k]), a=BY[k];
+    return `<div class="finding ${f.tone}"><div class="stripe"></div><div>
+      <div class="fhead"><span class="fname">${a.n}</span><span class="frole">${a.r} specialist</span></div>
+      <div class="ftext">${f.text}</div></div></div>`}).join('');
+
+  if(out.schedule){
+    $('vizPanel').hidden=false;
+    $('vizTitle').textContent='Project X network diagram \u2014 '+out.schedule.duration+' days';
+    $('vizLegend').innerHTML=`<span><i style="background:var(--critical)"></i>critical path (zero float)</span>
+      <span><i style="background:var(--line-2)"></i>has float</span>
+      <span>ES/EF from the forward pass, LS/LF from the backward pass</span>`;
+    $('viz').innerHTML=drawNetwork(out.schedule)+floatTable(out.schedule);
+  } else $('vizPanel').hidden=true;
+
+  const b=buildBrief(scn,out);
+  $('brief').innerHTML=`
+    <div class="bsec"><div class="k">Summary</div><p>${b.summary}</p></div>
+    <div class="bsec risk"><div class="k">Risks &amp; conflicts</div><p>${b.risks}</p></div>
+    <div class="bsec"><div class="k">Missing information</div><p>${b.missing}</p></div>
+    <div class="bsec"><div class="k">Recommended next step &mdash; human decides</div><p>${b.next}</p></div>`;
+
+  logAudit('request', `${scn.src} \u2014 "${scn.ask.slice(0,58)}\u2026"`);
+  logAudit('routed', `${scn.wake.length} specialist(s): ${scn.wake.map(k=>BY[k].n).join(', ')}`);
+  keys.forEach(k=>logAudit('engine', `${BY[k].n} returned deterministic output`));
+  logAudit('brief', 'Executive brief generated \u00b7 awaiting human decision');
+}
+
+$('scenarios').innerHTML=SCEN.map(s=>
+  `<button class="scn" type="button" data-id="${s.id}" aria-pressed="false">${s.label}</button>`).join('');
+$('scenarios').addEventListener('click',e=>{const b=e.target.closest('.scn');
+  if(b)run(SCEN.find(s=>s.id===b.dataset.id))});
+
+document.querySelector('.decide').addEventListener('click',e=>{
+  const b=e.target.closest('[data-d]'); if(!b)return;
+  const d=b.dataset.d;
+  $('decided').textContent=`${d} by you \u00b7 written to the audit trail`;
+  logAudit('human_decision', `${d} \u2014 recorded against this brief. The AI advised; you decided.`);
+});
+
+$('themer').addEventListener('click',()=>{
+  const r=document.documentElement;
+  const dark=r.getAttribute('data-theme')==='dark'||
+    (!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme:dark)').matches);
+  r.setAttribute('data-theme',dark?'light':'dark');
+});
+
+run(SCEN[1]);
+</script>

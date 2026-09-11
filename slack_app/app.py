@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DIR'A-PM Slack app entrypoint. Runs in Socket Mode, so no public URL /
+Tarteeb Slack app entrypoint. Runs in Socket Mode, so no public URL /
 ngrok tunnel is needed during the hackathon -- just two tokens.
 
 Setup (see README.md for the full walkthrough):
@@ -55,7 +55,7 @@ def main():
     register_handlers(app)
 
     handler = SocketModeHandler(app, app_token)
-    print("DIR'A-PM is running (Socket Mode). Try /pm in your workspace, "
+    print("Tarteeb is running (Socket Mode). Try /pm in your workspace, "
           "@-mention the bot, or drop a tasks/scoring/cost CSV in a channel it's in.")
     handler.start()
 

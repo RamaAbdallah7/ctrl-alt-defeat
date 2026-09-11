@@ -53,3 +53,42 @@ if __name__ == "__main__":
     test_cycle_detected()
     test_unknown_predecessor()
     print("ALL CPM TESTS PASSED")
+
+
+def test_reference_network_matches_course_table_6_1():
+    """Figure 6-2 / Table 6-1: duration 16, path B-E-H-J, task F holds 7 days float."""
+    tasks = [
+        {"id": "A", "name": "A", "duration": 1, "predecessors": []},
+        {"id": "B", "name": "B", "duration": 2, "predecessors": []},
+        {"id": "C", "name": "C", "duration": 3, "predecessors": []},
+        {"id": "D", "name": "D", "duration": 4, "predecessors": ["A"]},
+        {"id": "E", "name": "E", "duration": 5, "predecessors": ["B"]},
+        {"id": "F", "name": "F", "duration": 4, "predecessors": ["B"]},
+        {"id": "G", "name": "G", "duration": 6, "predecessors": ["C"]},
+        {"id": "H", "name": "H", "duration": 6, "predecessors": ["D", "E"]},
+        {"id": "I", "name": "I", "duration": 2, "predecessors": ["G"]},
+        {"id": "J", "name": "J", "duration": 3, "predecessors": ["F", "H", "I"]},
+    ]
+    r = compute_critical_path(tasks)
+    assert r["project_duration"] == 16
+    assert r["critical_path"] == ["B", "E", "H", "J"]
+    assert r["has_parallel_critical_paths"] is False
+
+    # free slack / total slack, exactly as Table 6-1 prints them
+    expected = {"A": (0, 2), "B": (0, 0), "C": (0, 2), "D": (2, 2), "E": (0, 0),
+                "F": (7, 7), "G": (0, 2), "H": (0, 0), "I": (2, 2), "J": (0, 0)}
+    for t in r["tasks"]:
+        assert (t["free_float"], t["total_float"]) == expected[t["id"]], t["id"]
+
+
+def test_parallel_critical_paths_are_listed_separately():
+    """Two equal-length paths must come back as two chains, not one fake path."""
+    tasks = [
+        {"id": "S", "name": "S", "duration": 1, "predecessors": []},
+        {"id": "P", "name": "P", "duration": 4, "predecessors": ["S"]},
+        {"id": "Q", "name": "Q", "duration": 4, "predecessors": ["S"]},
+        {"id": "E", "name": "E", "duration": 1, "predecessors": ["P", "Q"]},
+    ]
+    r = compute_critical_path(tasks)
+    assert r["has_parallel_critical_paths"] is True
+    assert r["critical_paths"] == [["S", "P", "E"], ["S", "Q", "E"]]

@@ -18,8 +18,8 @@ Design rules:
     stderr and we move to the next one. If every provider fails, we return
     None and the caller drops to templated/offline mode -- a hackathon demo
     must never die because of a network blip.
-  * The provider order and model ids are env-configurable (DIRA_MODEL,
-    DIRA_GEMINI_MODEL, DIRA_LLM_PROVIDERS).
+  * The provider order and model ids are env-configurable (TARTEEB_MODEL,
+    TARTEEB_GEMINI_MODEL, TARTEEB_LLM_PROVIDERS).
 """
 
 from __future__ import annotations
@@ -29,13 +29,13 @@ import os
 import sys
 from typing import Optional
 
-ANTHROPIC_MODEL = os.environ.get("DIRA_MODEL", "claude-sonnet-5")
-GEMINI_MODEL = os.environ.get("DIRA_GEMINI_MODEL", "gemini-2.5-flash")
+ANTHROPIC_MODEL = os.environ.get("TARTEEB_MODEL", "claude-sonnet-5")
+GEMINI_MODEL = os.environ.get("TARTEEB_GEMINI_MODEL", "gemini-2.5-flash")
 
 # comma-separated, in priority order; unknown names are ignored
 _PROVIDER_ORDER = [
     p.strip().lower()
-    for p in os.environ.get("DIRA_LLM_PROVIDERS", "anthropic,gemini").split(",")
+    for p in os.environ.get("TARTEEB_LLM_PROVIDERS", "anthropic,gemini").split(",")
     if p.strip()
 ]
 

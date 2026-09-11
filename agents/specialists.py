@@ -1,5 +1,5 @@
 """
-The DIR'A-PM specialist roster.
+The Tarteeb specialist roster.
 
 Each specialist is a named agent with one mandate, a fixed set of tools it
 owns, and its own voice when it reports a finding. The router decides which
@@ -43,11 +43,17 @@ def _compression(r):
     if not r["periods_saved"]:
         return ("The schedule cannot be bought shorter: no activity on the critical path "
                 "has crash data with room left to shorten.")
+    paths = r.get("final_critical_paths") or [r["final_critical_path"]]
+    if len(paths) > 1:
+        tail = (f"After compressing, {len(paths)} paths are critical at once "
+                f"({'; '.join(' -> '.join(p) for p in paths)}) -- every one of them now has to "
+                f"hold, so there is no slack left anywhere to absorb a slip.")
+    else:
+        tail = f"After compressing, the critical path becomes {' -> '.join(paths[0])}."
     return (f"The schedule can be compressed from {r['baseline_duration']:g} to "
             f"{r['final_duration']:g} periods -- {r['periods_saved']:g} saved for "
             f"{r['total_crash_cost']:,.0f}, about {r['cost_per_period_saved']:,.0f} per period. "
-            f"After compressing, the critical path becomes "
-            f"{' -> '.join(r['final_critical_path'])}.")
+            + tail)
 
 
 def _fast_track(r):

@@ -4,8 +4,8 @@ Critical Path Method (CPM) engine.
 Deterministic scheduling math -- no LLM involved. Given a list of tasks with
 durations and finish-to-start predecessor relationships, computes the
 forward pass (Early Start / Early Finish), backward pass (Late Start / Late
-Finish), total float, free float, the critical path, and overall project
-duration -- the same quantities MS Project's "Schedule" table shows
+Finish), total float, free float, every connected critical path, and overall
+project duration -- the same quantities MS Project's "Schedule" table shows
 (Table 6-1 / Figure 6-2 style exercises).
 
 Units are whatever the caller uses for duration (days, by convention here,
@@ -124,11 +124,33 @@ def compute_critical_path(task_list: List[dict]) -> dict:
             t.free_float = round(project_duration - t.ef, 6)
         t.is_critical = abs(t.total_float) < 1e-9
 
-    critical_path = [tid for tid in order if tasks[tid].is_critical]
+    # Enumerate the *connected* critical chains. Simply listing every
+    # zero-float task in topological order is wrong the moment two critical
+    # paths run in parallel -- it reads as one path that does not exist.
+    critical_ids = {tid for tid, t in tasks.items() if t.is_critical}
+    starts = [tid for tid in critical_ids
+              if not (set(tasks[tid].predecessors) & critical_ids)]
+
+    critical_paths: List[List[str]] = []
+    stack = [[s] for s in sorted(starts)]
+    while stack:
+        path = stack.pop()
+        nxt = sorted(s for s in successors[path[-1]] if s in critical_ids)
+        if not nxt:
+            critical_paths.append(path)
+        else:
+            for n in nxt:
+                stack.append(path + [n])
+    critical_paths.sort()
+
+    # `critical_path` stays the single primary chain for existing callers.
+    critical_path = critical_paths[0] if critical_paths else []
 
     return {
         "project_duration": project_duration,
         "critical_path": critical_path,
+        "critical_paths": critical_paths,
+        "has_parallel_critical_paths": len(critical_paths) > 1,
         "tasks": [
             {
                 "id": t.id,

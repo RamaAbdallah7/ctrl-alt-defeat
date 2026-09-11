@@ -1,7 +1,7 @@
 """
-DIR'A-PM orchestrator.
+Tarteeb orchestrator.
 
-Architecture (mirrors the DIR'A poster, scoped to project management):
+Architecture (mirrors the Tarteeb poster, scoped to project management):
 
   user input (chat / slash command / file)
         |

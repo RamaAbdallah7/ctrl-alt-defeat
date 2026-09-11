@@ -45,23 +45,8 @@ def _duration_of(tasks: list) -> tuple:
 
 
 def _critical_paths(result: dict) -> list:
-    """Enumerate the distinct critical chains through the network."""
-    by_id = {t["id"]: t for t in result["tasks"]}
-    crit = {tid for tid, t in by_id.items() if t["is_critical"]}
-    starts = [tid for tid in crit if not (set(by_id[tid]["predecessors"]) & crit)]
-
-    paths, stack = [], [[s] for s in starts]
-    while stack:
-        path = stack.pop()
-        last = path[-1]
-        nxt = [tid for tid in crit
-               if last in by_id[tid]["predecessors"]]
-        if not nxt:
-            paths.append(path)
-        else:
-            for n in nxt:
-                stack.append(path + [n])
-    return paths
+    """The connected critical chains, as enumerated by the CPM engine."""
+    return result.get("critical_paths") or ([result["critical_path"]] if result["critical_path"] else [])
 
 
 def crash_schedule(tasks: list, target_duration: float = None, max_spend: float = None) -> dict:
@@ -213,6 +198,8 @@ def crash_schedule(tasks: list, target_duration: float = None, max_spend: float 
         "baseline_critical_path": baseline_result["critical_path"],
         "final_duration": final_duration,
         "final_critical_path": final_result["critical_path"],
+        "final_critical_paths": final_result.get("critical_paths", []),
+        "final_has_parallel_paths": final_result.get("has_parallel_critical_paths", False),
         "periods_saved": saved,
         "total_crash_cost": round(total_cost, 2),
         "cost_per_period_saved": round(total_cost / saved, 2) if saved else None,

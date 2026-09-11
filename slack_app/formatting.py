@@ -13,7 +13,7 @@ def brief_blocks(result: dict, requester: str) -> list:
     brief = result["brief"]
     domains = ", ".join(result["specialist_outputs"].keys()) or "none"
     blocks = [
-        {"type": "header", "text": {"type": "plain_text", "text": "DIR'A-PM — Executive Brief"}},
+        {"type": "header", "text": {"type": "plain_text", "text": "Tarteeb — Executive Brief"}},
         {"type": "context", "elements": [{"type": "mrkdwn", "text": f"Specialists consulted: *{domains}*  •  requested by <@{requester}>  •  event `{result['event_id']}`"}]},
         {"type": "section", "text": {"type": "mrkdwn", "text": brief}},
         {"type": "divider"},

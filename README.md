@@ -1,4 +1,4 @@
-# CTRL+ALT+DEFEAT — DIR'A-PM
+# CTRL+ALT+DEFEAT — Tarteeb
 
 **A multi-agent project-management copilot that lives in Slack.**
 
@@ -74,7 +74,7 @@ shouldn't die because of a rate limit.
 ## Three ways in (all in one place)
 
 1. **Slash command** — `/pm we need to pick between three vendors on cost, quality and delivery time`
-2. **@mention, conversational** — `@DIR'A-PM how's Project X tracking against budget?`
+2. **@mention, conversational** — `@Tarteeb how's Project X tracking against budget?`
 3. **File upload** — drop a `tasks.csv` / `scoring.csv` / `cost.csv` (see `demo/sample_data/`) into a channel the bot is in; it auto-detects the type
 
 ---

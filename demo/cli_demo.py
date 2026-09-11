@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Local demo of the full DIR'A-PM pipeline -- no Slack app, no credentials
+Local demo of the full Tarteeb pipeline -- no Slack app, no credentials
 required for the deterministic parts. Great for recording the hackathon
 demo video's "here's the engine working" beat, or for testing before the
 Slack app is wired up.
@@ -70,7 +70,7 @@ def cmd_all():
     print(json.dumps(specialist_outputs, indent=2, default=str))
     print()
     print("=" * 70)
-    print("EXECUTIVE BRIEF (DIR'A-PM orchestrator)")
+    print("EXECUTIVE BRIEF (Tarteeb orchestrator)")
     print("=" * 70)
     print(brief)
 

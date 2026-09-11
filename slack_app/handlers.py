@@ -53,7 +53,7 @@ def register_handlers(app):
         parts = text.split(">", 1)
         user_text = parts[1].strip() if len(parts) > 1 else text
         if not user_text:
-            say(text="Mention me with a question, e.g. `@DIR'A-PM how's Project X tracking against budget?`", thread_ts=event.get("ts"))
+            say(text="Mention me with a question, e.g. `@Tarteeb how's Project X tracking against budget?`", thread_ts=event.get("ts"))
             return
         result = handle_request(user_text, source="mention", requester=event["user"])
         say(blocks=brief_blocks(result, event["user"]), thread_ts=event.get("ts"))

@@ -12,7 +12,7 @@ throwaway workspace to de-risk).
 ## 1. Create the app
 
 1. <https://api.slack.com/apps> → **Create New App** → **From scratch**
-2. Name it `DIR'A-PM`, pick your workspace.
+2. Name it `Tarteeb`, pick your workspace.
 
 ## 2. App-level token (→ `SLACK_APP_TOKEN`)
 
@@ -30,7 +30,7 @@ throwaway workspace to de-risk).
 
 | scope | why |
 |---|---|
-| `app_mentions:read` | receive `@DIR'A-PM …` |
+| `app_mentions:read` | receive `@Tarteeb …` |
 | `chat:write` | post briefs back |
 | `commands` | the `/pm` slash command |
 | `files:read` | download uploaded CSVs |
@@ -74,15 +74,15 @@ Expected startup line:
 
 ```
 LLM providers ready (in order): anthropic, gemini
-DIR'A-PM is running (Socket Mode). ...
+Tarteeb is running (Socket Mode). ...
 ```
 
 ## 9. Try it
 
-Invite the bot to a channel: `/invite @DIR'A-PM`, then:
+Invite the bot to a channel: `/invite @Tarteeb`, then:
 
 - `/pm compare Vendor A, B, C on cost (weight 50), quality (30), delivery (20)`
-- `@DIR'A-PM how is Project X tracking — PV 42000, EV 35000, AC 41000, BAC 120000?`
+- `@Tarteeb how is Project X tracking — PV 42000, EV 35000, AC 41000, BAC 120000?`
 - Drag `demo/sample_data/tasks.csv` into the channel.
 
 Each reply has **Approve / Discuss / Reject** buttons; clicking one writes a
