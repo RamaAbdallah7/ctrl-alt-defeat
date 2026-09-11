@@ -42,23 +42,46 @@ from typing import Optional
 from engines.cpm import compute_critical_path, CPMError
 from engines.scoring import compute_weighted_scores, ScoringError
 from engines.evm import compute_evm, EVMError
+from engines.finance import compute_financials, FinanceError
+from engines.pert import compute_pert, PERTError
+from engines.compression import crash_schedule, fast_track_candidates, CompressionError
+from engines.wbs import analyze_wbs, detect_scope_creep, WBSError
+from engines.estimating import classify_estimate, EstimateError
 from agents.prompts import ROUTER_SYSTEM_PROMPT, ORCHESTRATOR_SYSTEM_PROMPT
 from agents.tool_schemas import TOOLS
 from agents.audit import log_event
+from agents.specialists import BY_KEY, specialist_for_tool, report as specialist_report
 from agents import llm
 
 
 ENGINE_RUNNERS = {
     "run_schedule_analysis": lambda inp: ("schedule", _safe(compute_critical_path, inp["tasks"])),
     "run_scoring_analysis": lambda inp: ("scoring", _safe(compute_weighted_scores, inp["criteria"], inp["options"])),
-    "run_cost_analysis": lambda inp: ("cost", _safe(compute_evm, inp["pv"], inp["ev"], inp["ac"], inp["bac"])),
+    "run_cost_analysis": lambda inp: ("cost", _safe(
+        compute_evm, inp["pv"], inp["ev"], inp["ac"], inp["bac"], inp.get("planned_duration"))),
+    "run_financial_analysis": lambda inp: ("financial", _safe(
+        compute_financials, inp["costs"], inp["benefits"], inp["discount_rate"],
+        inp.get("rounding", "exact"), inp.get("start_year", 0))),
+    "run_pert_analysis": lambda inp: ("pert", _safe(
+        compute_pert, inp["activities"], inp.get("target"), inp.get("unit", "days"))),
+    "run_crash_analysis": lambda inp: ("crashing", _safe(
+        crash_schedule, inp["tasks"], inp.get("target_duration"), inp.get("max_spend"))),
+    "run_fast_track_analysis": lambda inp: ("fast_track", _safe(
+        fast_track_candidates, inp["tasks"], inp.get("overlap_fraction", 0.5))),
+    "run_wbs_analysis": lambda inp: ("wbs", _safe(
+        analyze_wbs, inp["items"], inp.get("value_label", "cost"))),
+    "run_scope_creep_analysis": lambda inp: ("scope_creep", _safe(
+        detect_scope_creep, inp["baseline"], inp["current"], inp.get("value_label", "cost"))),
+    "run_estimate_check": lambda inp: ("estimate", _safe(
+        classify_estimate, inp["estimate"], inp["estimate_type"], inp.get("budget"))),
 }
 
 
 def _safe(fn, *args):
     try:
         return {"ok": True, "result": fn(*args)}
-    except (CPMError, ScoringError, EVMError) as e:
+    except (CPMError, ScoringError, EVMError, FinanceError, PERTError,
+            CompressionError, WBSError, EstimateError) as e:
         return {"ok": False, "error": str(e)}
     except (KeyError, TypeError, ValueError) as e:
         # a provider handed us malformed structured input
@@ -110,39 +133,40 @@ def run_specialists(tool_calls: list) -> dict:
         if runner is None:
             continue
         domain, output = runner(call.get("input", {}))
-        outputs[domain] = {"input": call.get("input", {}), **output}
+        agent = specialist_for_tool(name)
+        outputs[domain] = {
+            "input": call.get("input", {}),
+            "agent": agent.name if agent else domain,
+            "agent_role": agent.role if agent else None,
+            "agent_mandate": agent.mandate if agent else None,
+            **output,
+        }
     return outputs
 
 
 def _templated_brief(specialist_outputs: dict) -> str:
-    """No-LLM fallback brief -- straightforward templating over engine output."""
+    """
+    No-LLM fallback brief. Each named specialist reports its own finding in
+    its own voice (agents/specialists.py), so the offline path reads like the
+    same team as the LLM path rather than like a different product.
+    """
     lines = []
     for domain, out in specialist_outputs.items():
+        agent = BY_KEY.get(domain)
+        label = out.get("agent") or (agent.name if agent else domain)
         if not out["ok"]:
-            lines.append(f"[{domain}] ERROR: {out['error']}")
+            lines.append(f"{label}: could not report -- {out['error']}")
             continue
-        r = out["result"]
-        if domain == "schedule":
-            lines.append(
-                f"[schedule] Project duration {r['project_duration']:g} days. "
-                f"Critical path: {' -> '.join(r['critical_path'])}."
-            )
-        elif domain == "scoring":
-            top = r["ranked_options"][0]
-            runner_up = r["ranked_options"][1] if len(r["ranked_options"]) > 1 else None
-            line = f"[scoring] Top option: {top['option']} (score {top['weighted_score']:g})."
-            if runner_up and abs(top["weighted_score"] - runner_up["weighted_score"]) < 5:
-                line += f" WARNING: {runner_up['option']} is within 5 points ({runner_up['weighted_score']:g}) -- effectively a tie."
-            lines.append(line)
-            if r["warnings"]:
-                lines.append("[scoring] Warnings: " + "; ".join(r["warnings"]))
-        elif domain == "cost":
-            lines.append(
-                f"[cost] CPI {r['cpi']}, SPI {r['spi']}, EAC {r['eac']}. "
-                + ("; ".join(r["flags"]) if r["flags"] else "No cost/schedule flags.")
-            )
+        finding = specialist_report(domain, out["result"])
+        if finding:
+            lines.append(f"{label}: {finding}")
+
     if not lines:
         return "No specialist produced usable output."
+
+    reported = len(lines)
+    header = (f"{reported} specialist{'s' if reported != 1 else ''} reported.")
+    lines.insert(0, header)
     lines.append(
         "\nRECOMMENDED NEXT STEP: review the figures above and choose one of "
         "proceed / request more data / escalate. A human decision is required "
@@ -156,7 +180,8 @@ def write_executive_brief(user_text: str, specialist_outputs: dict) -> str:
         return _templated_brief(specialist_outputs)
 
     payload = json.dumps(
-        {domain: {"input": out["input"], "ok": out["ok"], "result": out.get("result"), "error": out.get("error")}
+        {domain: {"agent": out.get("agent"), "input": out["input"], "ok": out["ok"],
+                  "result": out.get("result"), "error": out.get("error")}
          for domain, out in specialist_outputs.items()},
         default=str,
     )

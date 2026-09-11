@@ -4,5 +4,8 @@ slack_sdk>=3.31.0
 python-dotenv>=1.0.0
 requests>=2.31.0
 
+# Test runner (tests/ are pytest-style: bare functions + assert)
+pytest>=8.0.0
+
 # Optional fallback LLM provider (see agents/llm.py). The app runs without it.
 google-genai>=0.3.0
