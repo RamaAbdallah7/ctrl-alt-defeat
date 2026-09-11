@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tarteeb &mdash; a project-management copilot for your team's chat</title>
+<meta name="description" content="Ten specialist PM agents that live in Slack and Microsoft Teams. Deterministic engines do the math; a human always decides.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#eef1f4; --surface:#fff; --surface-2:#f7f9fb;
+  --ink:#14202c; --ink-2:#4a5b6b; --ink-3:#7a8a99;
+  --line:#d3dbe3; --line-2:#bcc8d3;
+  --accent:#12558c; --accent-soft:#dbe8f4; --accent-ink:#0d3f6a;
+  --critical:#b3202f; --good:#1f6b4d; --warn:#9a6410;
+  --shadow:0 1px 2px rgba(20,32,44,.06),0 4px 14px rgba(20,32,44,.05);
+  --f-disp:"IBM Plex Sans Condensed",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0e161e; --surface:#16212c; --surface-2:#1c2933;
+  --ink:#e6edf4; --ink-2:#a3b4c4; --ink-3:#6d8093;
+  --line:#2a3946; --line-2:#3a4c5c;
+  --accent:#61a8e0; --accent-soft:#14314b; --accent-ink:#9ccbf0;
+  --critical:#f0707e; --good:#6ac295; --warn:#e0a458;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --paper:#0e161e; --surface:#16212c; --surface-2:#1c2933;
+  --ink:#e6edf4; --ink-2:#a3b4c4; --ink-3:#6d8093;
+  --line:#2a3946; --line-2:#3a4c5c;
+  --accent:#61a8e0; --accent-soft:#14314b; --accent-ink:#9ccbf0;
+  --critical:#f0707e; --good:#6ac295; --warn:#e0a458;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+.wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+a{color:var(--accent)}
+
+/* hero */
+.hero{padding:46px 0 34px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:14px}
+h1{font-family:var(--f-disp);font-weight:700;font-size:clamp(38px,7vw,62px);letter-spacing:-.02em;
+  margin:0 0 6px;line-height:.98}
+.lede{font-size:clamp(16px,2.3vw,19px);color:var(--ink-2);max-width:60ch;margin:0 0 22px;
+  text-wrap:balance}
+.lede strong{color:var(--ink);font-weight:500}
+.cta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-block;font-family:var(--f-body);font-size:14.5px;font-weight:500;
+  text-decoration:none;border-radius:3px;padding:10px 18px;border:1px solid var(--line-2);
+  background:var(--surface);color:var(--ink)}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.1);color:#fff}
+.cta .note{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3)}
+
+/* sections */
+section{padding:34px 0;border-bottom:1px solid var(--line)}
+h2{font-family:var(--f-disp);font-size:12px;font-weight:600;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 16px}
+h3{font-family:var(--f-disp);font-size:19px;margin:0 0 4px;font-weight:600}
+p{margin:0 0 12px}
+
+/* how it works */
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.step{background:var(--surface);padding:15px 16px}
+.step .n{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;color:var(--accent);
+  text-transform:uppercase;margin-bottom:5px}
+.step p{font-size:13.5px;color:var(--ink-2);margin:0}
+.step b{color:var(--ink);font-weight:600;font-family:var(--f-disp);font-size:15px;
+  display:block;margin-bottom:3px}
+
+/* agents */
+.agents{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.agent{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:3px;padding:11px 13px;box-shadow:var(--shadow)}
+.agent .nm{font-family:var(--f-disp);font-weight:600;font-size:15px;line-height:1.25}
+.agent .rl{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-3);margin:3px 0 5px}
+.agent .md{font-size:12.5px;color:var(--ink-2);line-height:1.45}
+
+/* demos */
+.demos{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.demo{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:16px;
+  box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
+.demo p{font-size:13.5px;color:var(--ink-2);flex:1;margin:0}
+.demo .go{font-family:var(--f-mono);font-size:12px;text-decoration:none;margin-top:6px}
+.demo.lead{border-left:3px solid var(--accent)}
+.badge{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;
+  background:var(--accent-soft);color:var(--accent-ink);padding:2px 6px;border-radius:2px;
+  align-self:flex-start}
+
+/* validated table */
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-3);padding:7px 10px;border-bottom:1px solid var(--line-2);
+  white-space:nowrap}
+td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.ok{color:var(--good);font-family:var(--f-mono);font-size:12px}
+
+/* code */
+pre{background:var(--surface-2);border:1px solid var(--line);border-radius:3px;padding:12px 14px;
+  overflow-x:auto;font-family:var(--f-mono);font-size:12.5px;color:var(--ink);margin:0 0 12px}
+code{font-family:var(--f-mono);font-size:.92em;background:var(--surface-2);padding:1px 4px;
+  border-radius:2px;border:1px solid var(--line)}
+pre code{background:none;border:0;padding:0}
+
+footer{padding:26px 0 48px;color:var(--ink-3);font-size:13px;display:flex;
+  justify-content:space-between;gap:16px;flex-wrap:wrap}
+footer a{color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">CTRL+ALT+DEFEAT &middot; Agents, Everywhere &middot; AI Tinkerers Abu Dhabi</div>
+    <h1>Tarteeb</h1>
+    <p class="lede">Ten specialist project-management agents that live in the channel your team
+      already argues about schedules in. Ask in plain language &mdash; a router wakes only the
+      specialists the question needs, <strong>deterministic engines do every calculation</strong>,
+      and one brief comes back for a human to decide on.</p>
+    <div class="cta">
+      <a class="btn primary" href="agent-console.html">Open the live console</a>
+      <a class="btn" href="https://github.com/RamaAbdallah7/ctrl-alt-defeat">View the code</a>
+      <span class="note">No sign-in. Everything computes in your browser.</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>How it works</h2>
+    <div class="flow">
+      <div class="step"><div class="n">Step 1</div><p><b>Ask</b>In Slack or Microsoft Teams &mdash;
+        a question, pasted figures, or a dropped CSV.</p></div>
+      <div class="step"><div class="n">Step 2</div><p><b>Route</b>An LLM picks which specialists
+        apply and extracts their inputs. It never does the arithmetic.</p></div>
+      <div class="step"><div class="n">Step 3</div><p><b>Compute</b>Deterministic Python engines
+        run the real PM math, validated against known-correct answers.</p></div>
+      <div class="step"><div class="n">Step 4</div><p><b>Decide</b>One consolidated brief, with
+        Approve / Discuss / Reject. Every step is logged.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Try it</h2>
+    <div class="demos">
+      <div class="demo lead">
+        <span class="badge">Start here</span>
+        <h3>Agent console</h3>
+        <p>Eight real scenarios against one project. Watch the router wake specific agents, read
+          what each reports, and see the network diagram with the critical path drawn in red.
+          Every figure is computed live, not replayed.</p>
+        <a class="go" href="agent-console.html">Open the console &rarr;</a>
+      </div>
+      <div class="demo">
+        <h3>Proposal room</h3>
+        <p>An interactive walk-through of a weighted decision between competing proposals, and
+          what happens when the top two options are effectively tied.</p>
+        <a class="go" href="proposal-room.html">Open &rarr;</a>
+      </div>
+      <div class="demo">
+        <h3>Chat brief mockup</h3>
+        <p>What a consolidated brief looks like where the conversation already happens &mdash;
+          findings, risks, and the decision buttons in the thread.</p>
+        <a class="go" href="slack-brief-mockup.html">Open &rarr;</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The specialist roster</h2>
+    <div class="agents">
+      <div class="agent"><div class="nm">Critical Path Analyst</div><div class="rl">Schedule</div>
+        <div class="md">When the project actually finishes, and which tasks drive that date.</div></div>
+      <div class="agent"><div class="nm">Schedule Recovery Analyst</div><div class="rl">Compression</div>
+        <div class="md">The cheapest way to buy back time when the date has to move in.</div></div>
+      <div class="agent"><div class="nm">Fast-Track Analyst</div><div class="rl">Compression</div>
+        <div class="md">Which sequential work could overlap when there is no budget to crash.</div></div>
+      <div class="agent"><div class="nm">Earned Value Analyst</div><div class="rl">Cost control</div>
+        <div class="md">Cost and schedule performance against baseline, and where it lands.</div></div>
+      <div class="agent"><div class="nm">Business Case Analyst</div><div class="rl">Investment</div>
+        <div class="md">Whether the project is worth doing at all &mdash; NPV, ROI, payback.</div></div>
+      <div class="agent"><div class="nm">Estimation Analyst</div><div class="rl">Estimating</div>
+        <div class="md">Uncertain estimates into an expected figure, a spread, and the odds.</div></div>
+      <div class="agent"><div class="nm">Estimate Assurance Analyst</div><div class="rl">Estimating</div>
+        <div class="md">Holds an estimate to the accuracy its type actually supports.</div></div>
+      <div class="agent"><div class="nm">Scope Architect</div><div class="rl">Scope</div>
+        <div class="md">Whether the breakdown holds together and accounts for all the work.</div></div>
+      <div class="agent"><div class="nm">Baseline Guardian</div><div class="rl">Scope</div>
+        <div class="md">What changed against the approved baseline without a change request.</div></div>
+      <div class="agent"><div class="nm">Options Analyst</div><div class="rl">Decision</div>
+        <div class="md">The weighted decision matrix &mdash; and when a winner is really a tie.</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The math is checked, not trusted</h2>
+    <p style="color:var(--ink-2);max-width:62ch">The language model chooses <em>which</em> analysis to
+      run and pulls the numbers out of a sentence. It never computes one. Every engine is pinned by
+      tests to a published worked answer, so a wrong figure fails the build rather than reaching a brief.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Engine</th><th>Checked against</th><th>Expected</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Critical path &amp; float</td><td>Reference 10-task network</td>
+            <td class="n">16 days, path B-E-H-J, 7d float on F</td><td class="ok">pass</td></tr>
+          <tr><td>Weighted decision matrix</td><td>Five-criteria worked example</td>
+            <td class="n">72, 72, 58, 50 (a tie at the top)</td><td class="ok">pass</td></tr>
+          <tr><td>Earned value</td><td>Textbook EVM problem</td>
+            <td class="n">CPI 0.80, SPI 0.90, EAC $150,000</td><td class="ok">pass</td></tr>
+          <tr><td>NPV / ROI / payback</td><td>Discounted cash-flow example</td>
+            <td class="n">NPV $272,800, ROI 112%</td><td class="ok">pass</td></tr>
+          <tr><td>PERT three-point</td><td>Weighted-average formula</td>
+            <td class="n">(O + 4M + P) / 6, sd = (P &minus; O) / 6</td><td class="ok">pass</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Run it yourself</h2>
+    <pre><code>git clone https://github.com/RamaAbdallah7/ctrl-alt-defeat.git
+cd ctrl-alt-defeat
+python3 -m venv .venv &amp;&amp; .venv/bin/pip install -r requirements.txt
+
+.venv/bin/python -m pytest tests/ -q     # the full suite
+.venv/bin/python demo/cli_demo.py all    # a brief, no API key needed</code></pre>
+    <p style="color:var(--ink-2);font-size:13.5px;margin:0">Chat surfaces:
+      <a href="https://github.com/RamaAbdallah7/ctrl-alt-defeat/blob/main/SLACK_SETUP.md">Slack setup</a>
+      (about 10 minutes, no public URL) &middot;
+      <a href="https://github.com/RamaAbdallah7/ctrl-alt-defeat/blob/main/TEAMS_SETUP.md">Microsoft Teams setup</a>
+      (needs an HTTPS endpoint, or the Bot Framework Emulator).</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;width:100%">
+    <span>Built by CTRL+ALT+DEFEAT for Agents, Everywhere &mdash; MBZUAI, Masdar City.</span>
+    <span><a href="https://github.com/RamaAbdallah7/ctrl-alt-defeat">github.com/RamaAbdallah7/ctrl-alt-defeat</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

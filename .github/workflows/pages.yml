@@ -1,0 +1,77 @@
+name: Deploy demo site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'demo/web/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure Pages
+        # enablement turns Pages on using this workflow's token, so the repo
+        # does not need someone with admin rights to flip it by hand first.
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp -R demo/web/. _site/
+          # Pages serves these files directly, and agent-console.html is
+          # authored without a document shell so it can also be published as
+          # a standalone artifact. Give any such file a real one here.
+          python3 - <<'PY'
+          import pathlib, re
+          for p in pathlib.Path("_site").rglob("*.html"):
+              s = p.read_text(encoding="utf-8")
+              if re.match(r"\s*<!doctype html", s, re.I):
+                  continue
+              m = re.search(r"<title>(.*?)</title>", s, re.I | re.S)
+              title = m.group(1).strip() if m else p.stem
+              p.write_text(
+                  '<!doctype html>\n<html lang="en">\n<head>\n'
+                  '<meta charset="utf-8">\n'
+                  '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
+                  f'<title>{title}</title>\n'
+                  '<style>body{margin:0;font:14px/1.5 system-ui,sans-serif}'
+                  'img{max-width:100%}[hidden]{display:none!important}</style>\n'
+                  '</head>\n<body>\n' + s + '\n</body>\n</html>\n',
+                  encoding="utf-8",
+              )
+              print("wrapped", p)
+          PY
+          touch _site/.nojekyll
+          echo "--- site contents ---"
+          ls -la _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
