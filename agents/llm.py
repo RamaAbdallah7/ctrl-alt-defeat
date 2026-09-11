@@ -9,9 +9,14 @@ The app only ever needs two things from a language model:
 
 Both are attempted against providers in priority order:
 
-  Anthropic  (claude-sonnet-5)   -- primary; best tool-use routing
-  Google Gemini                  -- fallback if Anthropic errors / rate-limits
+  Anthropic  (claude-sonnet-5)   -- native tool use
+  Google Gemini                  -- native function calling, with a
+                                    JSON-shaped prompt as a last resort
   (none)                         -- caller uses its own deterministic fallback
+
+Either provider can lead: set TARTEEB_LLM_PROVIDERS=gemini,anthropic to put
+Gemini first. A provider with no key is skipped silently, so the order can
+name providers that are not configured.
 
 Design rules:
   * Nothing here raises on a provider outage. A failed provider is logged to
@@ -117,32 +122,85 @@ def _anthropic_text(system: str, prompt: str, max_tokens: int) -> Optional[str]:
 
 
 # --------------------------------------------------------------------------
-# Google Gemini (fallback)
+# Google Gemini
 #
-# Gemini's function-calling schema handling is stricter than Anthropic's
-# (e.g. no additionalProperties), so instead of porting the tool schemas we
-# ask Gemini to return a single JSON object in a fixed shape and map it back
-# to the same {tool_calls, clarifying_question} contract. Slower path, but
-# it only runs when the primary provider is down.
+# Gemini supports native function calling, so the router gets the same tool
+# definitions Anthropic does rather than a hand-written JSON prompt -- that
+# matters because a prompt-shaped router silently drops any engine it was
+# not told about, and there are ten of them.
+#
+# Two shape differences have to be bridged:
+#   * Gemini's schema validator rejects JSON Schema keywords it does not
+#     know (additionalProperties among them), so schemas are sanitised.
+#   * Gemini returns function calls as parts on the response candidate
+#     rather than typed content blocks.
+# If function calling fails outright, we fall back to asking for one JSON
+# object -- built from the live tool list, so it can never go stale.
 # --------------------------------------------------------------------------
 
 _gemini_client = None
 _gemini_dead = False
 
-_GEMINI_ROUTER_SUFFIX = """
+# JSON Schema keywords Gemini's function-calling validator does not accept.
+_SCHEMA_DROP = {
+    "additionalProperties", "$schema", "$id", "$ref", "definitions", "$defs",
+    "patternProperties", "allOf", "oneOf", "not", "const", "examples",
+}
+
+
+def _sanitise_schema(node):
+    """Recursively strip schema keywords Gemini rejects."""
+    if isinstance(node, list):
+        return [_sanitise_schema(n) for n in node]
+    if not isinstance(node, dict):
+        return node
+    out = {}
+    for k, v in node.items():
+        if k in _SCHEMA_DROP:
+            continue
+        if k == "properties" and isinstance(v, dict):
+            out[k] = {pk: _sanitise_schema(pv) for pk, pv in v.items()}
+        else:
+            out[k] = _sanitise_schema(v)
+    return out
+
+
+def _gemini_tools(tools: list):
+    """Anthropic-style tool dicts -> one Gemini Tool of FunctionDeclarations."""
+    from google.genai import types
+
+    decls = []
+    for t in tools:
+        decls.append(
+            types.FunctionDeclaration(
+                name=t["name"],
+                description=t.get("description", ""),
+                parameters_json_schema=_sanitise_schema(t.get("input_schema", {})),
+            )
+        )
+    return [types.Tool(function_declarations=decls)]
+
+
+def _json_router_suffix(tools: list) -> str:
+    """Last-resort prompt, generated from the live tool list so it cannot
+    fall behind the engines the way a hand-written one does."""
+    names = [t["name"] for t in tools if t["name"] != "ask_clarifying_question"]
+    lines = "\n".join(
+        f'  - {t["name"]}: {t.get("description", "")} '
+        f'Input keys: {", ".join((t.get("input_schema") or {}).get("properties", {}))}.'
+        for t in tools if t["name"] != "ask_clarifying_question"
+    )
+    return f"""
 
 ---
-You do not have function-calling here. Respond with ONE JSON object and nothing
-else (no markdown fences). Shape:
+Function calling is unavailable, so respond with ONE JSON object and nothing
+else (no markdown fences), in this shape:
 
-{
-  "engine_calls": [
-    {"name": "run_schedule_analysis", "input": {"tasks": [{"id": "A", "name": "...", "duration": 3, "predecessors": []}]}},
-    {"name": "run_scoring_analysis", "input": {"criteria": [{"name": "Cost", "weight": 30}], "options": [{"name": "Vendor A", "scores": {"Cost": 80}}]}},
-    {"name": "run_cost_analysis", "input": {"pv": 0, "ev": 0, "ac": 0, "bac": 0}}
-  ],
-  "clarifying_question": null
-}
+{{"engine_calls": [{{"name": "<one of: {", ".join(names)}>", "input": {{...}}}}],
+ "clarifying_question": null}}
+
+The engines and the input keys each expects:
+{lines}
 
 Include only the engine_calls the request actually supplies data for. If there
 is not enough data for any engine, use an empty engine_calls list and put ONE
@@ -171,14 +229,18 @@ def _gemini():
         return None
 
 
-def _gemini_generate(prompt: str, system: Optional[str] = None) -> Optional[str]:
+def _gemini_generate(prompt: str, system: Optional[str] = None,
+                     max_tokens: Optional[int] = None) -> Optional[str]:
     client = _gemini()
     if client is None:
         return None
     try:
         from google.genai import types
 
-        cfg = types.GenerateContentConfig(system_instruction=system) if system else None
+        cfg = types.GenerateContentConfig(
+            system_instruction=system,
+            max_output_tokens=max_tokens,
+        )
         resp = client.models.generate_content(
             model=GEMINI_MODEL, contents=prompt, config=cfg
         )
@@ -203,8 +265,60 @@ def _extract_json(text: str) -> Optional[dict]:
         return None
 
 
+def _gemini_function_calls(resp) -> Optional[list]:
+    """Pull function calls off a Gemini response, tolerating SDK shape drift."""
+    calls = getattr(resp, "function_calls", None)
+    if calls:
+        return [{"name": c.name, "input": dict(c.args or {})} for c in calls]
+
+    out = []
+    for cand in (getattr(resp, "candidates", None) or []):
+        content = getattr(cand, "content", None)
+        for part in (getattr(content, "parts", None) or []):
+            fc = getattr(part, "function_call", None)
+            if fc is not None and getattr(fc, "name", None):
+                out.append({"name": fc.name, "input": dict(getattr(fc, "args", None) or {})})
+    return out or None
+
+
 def _gemini_route(system: str, tools: list, user_text: str) -> Optional[dict]:
-    raw = _gemini_generate(user_text, system=system + _GEMINI_ROUTER_SUFFIX)
+    client = _gemini()
+    if client is None:
+        return None
+
+    # 1. native function calling
+    try:
+        from google.genai import types
+
+        resp = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=user_text,
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                tools=_gemini_tools(tools),
+                # let the model decide whether to call an engine or ask a question
+                tool_config=types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(mode="AUTO")
+                ),
+            ),
+        )
+        raw_calls = _gemini_function_calls(resp)
+        if raw_calls is not None:
+            tool_calls, clarifying = [], None
+            for c in raw_calls:
+                if c["name"] == "ask_clarifying_question":
+                    clarifying = (c["input"] or {}).get("question")
+                else:
+                    tool_calls.append(c)
+            return {"tool_calls": tool_calls, "clarifying_question": clarifying,
+                    "provider": "gemini"}
+        # no calls and no question -- fall through to the JSON path
+        _warn("gemini returned no function calls; trying the JSON router")
+    except Exception as e:
+        _warn(f"gemini function calling failed ({e}); trying the JSON router")
+
+    # 2. last resort: ask for one JSON object
+    raw = _gemini_generate(user_text, system=system + _json_router_suffix(tools))
     if raw is None:
         return None
     parsed = _extract_json(raw)
@@ -224,7 +338,7 @@ def _gemini_route(system: str, tools: list, user_text: str) -> Optional[dict]:
 
 
 def _gemini_text(system: str, prompt: str, max_tokens: int) -> Optional[str]:
-    return _gemini_generate(prompt, system=system)
+    return _gemini_generate(prompt, system=system, max_tokens=max_tokens)
 
 
 # --------------------------------------------------------------------------

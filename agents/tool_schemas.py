@@ -49,9 +49,16 @@ TOOLS = [
                         "properties": {
                             "name": {"type": "string"},
                             "scores": {
-                                "type": "object",
-                                "description": "map of criterion name -> raw score (0-100) for this option",
-                                "additionalProperties": {"type": "number"},
+                                "type": "array",
+                                "description": "this option's raw score (0-100) against each criterion",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "criterion": {"type": "string", "description": "must match a criterion name exactly"},
+                                        "score": {"type": "number", "description": "raw score, 0-100"},
+                                    },
+                                    "required": ["criterion", "score"],
+                                },
                             },
                         },
                         "required": ["name", "scores"],

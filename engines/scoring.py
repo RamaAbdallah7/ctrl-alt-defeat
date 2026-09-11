@@ -20,6 +20,28 @@ class ScoringError(ValueError):
     pass
 
 
+def _normalise_scores(scores) -> Dict[str, float]:
+    """Accept either {"Cost": 100} or [{"criterion": "Cost", "score": 100}]."""
+    if scores is None:
+        return {}
+    if isinstance(scores, dict):
+        return scores
+    if isinstance(scores, list):
+        out = {}
+        for entry in scores:
+            if not isinstance(entry, dict):
+                raise ScoringError(f"Unreadable score entry: {entry!r}")
+            name = entry.get("criterion", entry.get("name"))
+            if name is None or "score" not in entry:
+                raise ScoringError(
+                    "Each score entry needs a 'criterion' and a 'score' "
+                    f"(got {entry!r})"
+                )
+            out[str(name)] = entry["score"]
+        return out
+    raise ScoringError(f"scores must be an object or a list of pairs, got {type(scores).__name__}")
+
+
 def compute_weighted_scores(
     criteria: List[dict],
     options: List[dict],
@@ -28,6 +50,10 @@ def compute_weighted_scores(
     """
     criteria: [{"name": "Cost", "weight": 30}, ...]  weights in percent
     options:  [{"name": "Option 1", "scores": {"Cost": 100, ...}}, ...]
+              `scores` may also arrive as a list of
+              [{"criterion": "Cost", "score": 100}, ...] -- some providers
+              cannot express an open-ended object in a function schema, so
+              both shapes are accepted and normalised here.
 
     Returns per-option weighted scores (ranked) plus a warning if weights
     don't sum to ~100, and a warning per option for any missing criterion
@@ -38,6 +64,8 @@ def compute_weighted_scores(
         raise ScoringError("No criteria provided")
     if not options:
         raise ScoringError("No options provided")
+
+    options = [{**o, "scores": _normalise_scores(o.get("scores"))} for o in options]
 
     weight_sum = sum(float(c["weight"]) for c in criteria)
     warnings: List[str] = []
