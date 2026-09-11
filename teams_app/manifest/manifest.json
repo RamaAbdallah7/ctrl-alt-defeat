@@ -1,0 +1,45 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "REPLACE_WITH_MICROSOFT_APP_ID",
+  "packageName": "com.ctrlaltdefeat.tarteeb",
+  "developer": {
+    "name": "CTRL+ALT+DEFEAT",
+    "websiteUrl": "https://github.com/RamaAbdallah7/ctrl-alt-defeat",
+    "privacyUrl": "https://github.com/RamaAbdallah7/ctrl-alt-defeat",
+    "termsOfUseUrl": "https://github.com/RamaAbdallah7/ctrl-alt-defeat"
+  },
+  "icons": { "color": "color.png", "outline": "outline.png" },
+  "name": {
+    "short": "Tarteeb",
+    "full": "Tarteeb - project management copilot"
+  },
+  "description": {
+    "short": "Ten PM specialists in the channel where your team already works.",
+    "full": "Tarteeb routes a plain-language project question to whichever of its ten specialist agents apply - critical path, earned value, business case, estimating, scope and decision analysis. Deterministic engines do every calculation; a single brief comes back with Approve, Discuss and Reject, and every step is written to an append-only audit trail. The AI advises; a human decides."
+  },
+  "accentColor": "#12558C",
+  "bots": [
+    {
+      "botId": "REPLACE_WITH_MICROSOFT_APP_ID",
+      "scopes": ["personal", "team", "groupChat"],
+      "supportsFiles": true,
+      "isNotificationOnly": false,
+      "commandLists": [
+        {
+          "scopes": ["personal", "team", "groupChat"],
+          "commands": [
+            { "title": "critical path", "description": "When does the project finish and where is the slack?" },
+            { "title": "budget check", "description": "How are we tracking on cost and schedule? (PV, EV, AC, BAC)" },
+            { "title": "compare options", "description": "Weighted decision matrix across criteria" },
+            { "title": "business case", "description": "NPV, ROI and payback from yearly costs and benefits" },
+            { "title": "scope check", "description": "Has the work breakdown grown since baseline?" }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": []
+}

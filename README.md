@@ -1,6 +1,8 @@
 # CTRL+ALT+DEFEAT — Tarteeb
 
-**A multi-agent project-management copilot that lives in Slack.**
+**A multi-agent project-management copilot that lives in your team's chat.**
+
+Runs in **Slack** and **Microsoft Teams** from the same agent core.
 
 Hackathon entry for **Agents, Everywhere** (AI Tinkerers — Abu Dhabi),
 Mohamed bin Zayed University of Artificial Intelligence, Masdar City —
@@ -9,12 +11,14 @@ Mohamed bin Zayed University of Artificial Intelligence, Masdar City —
 > The challenge: *build an agent for a place people already work, talk, or
 > live, then make it meaningfully more useful because of that context.*
 
-The context here is the PM team's own Slack channel — the same place they
-already argue about schedules and budgets. Post a question, paste some
-numbers, or drop a CSV, and a set of specialist agents run the actual PM
-math (critical path, weighted decision matrix, earned value) while an
-Executive Orchestrator hands back **one** consolidated brief: findings,
-risks, conflicts, what's missing, and next-step options.
+The context here is the PM team's own channel — the same place they already
+argue about schedules and budgets. Post a question, paste some numbers, or
+drop a CSV, and a router wakes whichever of **ten named specialist agents**
+apply. Deterministic engines run the actual PM math — critical path and
+float, weighted decision matrix, earned value, NPV/ROI/payback, PERT,
+schedule crashing, work-breakdown checks — while an Executive Orchestrator
+hands back **one** consolidated brief: findings, risks, conflicts, what's
+missing, and next-step options.
 
 **The human always makes the final call.** The bot advises and logs; it
 never decides.
@@ -24,20 +28,33 @@ never decides.
 ## Architecture
 
 ```
- Slack  (/pm  ·  @mention  ·  CSV upload)
-        │
-        ▼
-   ┌─────────┐   LLM + tool-use (Anthropic → Gemini fallback):
+ Slack (/pm · @mention · CSV)      Microsoft Teams (message · @mention · CSV)
+        │                                    │
+        └──────────────┬─────────────────────┘
+                       ▼
+   ┌─────────┐   LLM + tool use (Gemini or Anthropic, either can lead):
    │ Router  │   picks the specialist(s), extracts structured inputs,
    └─────────┘   or asks ONE clarifying question if data is missing
-        │
-        ▼
-   ┌──────────────────────────────────────────────┐
-   │  Specialist engines  (deterministic Python)   │
-   │   engines/cpm.py      critical path / float    │
-   │   engines/scoring.py  weighted decision matrix │
-   │   engines/evm.py      earned value (CPI/SPI)   │
-   └──────────────────────────────────────────────┘
+                       │
+                       ▼
+   ┌────────────────────────────────────────────────────────┐
+   │  Ten specialist agents over deterministic engines        │
+   │   cpm.py          Critical Path Analyst                  │
+   │   compression.py  Schedule Recovery + Fast-Track Analyst │
+   │   evm.py          Earned Value Analyst                   │
+   │   finance.py      Business Case Analyst                  │
+   │   pert.py         Estimation Analyst                     │
+   │   estimating.py   Estimate Assurance Analyst             │
+   │   wbs.py          Scope Architect + Baseline Guardian    │
+   │   scoring.py      Options Analyst                        │
+   └────────────────────────────────────────────────────────┘
+                       │
+                       ▼
+   ┌────────────────────────────────────────────────────────┐
+   │  channels/  one BriefView, two renderers                 │
+   │   slack_blocks.py  -> Block Kit                          │
+   │   teams_cards.py   -> Adaptive Card                      │
+   └────────────────────────────────────────────────────────┘
         │
         ▼
    ┌──────────────┐   LLM: consolidates every specialist's output into

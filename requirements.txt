@@ -9,3 +9,7 @@ pytest>=8.0.0
 
 # Optional fallback LLM provider (see agents/llm.py). The app runs without it.
 google-genai>=0.3.0
+
+# Microsoft Teams surface (teams_app/). Optional -- the Slack app and the CLI
+# demo run without it.
+botbuilder-integration-aiohttp>=4.17.0

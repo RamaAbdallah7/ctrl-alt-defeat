@@ -117,8 +117,8 @@ def route_request(user_text: str, structured_hint: Optional[dict] = None) -> dic
         "tool_calls": [],
         "clarifying_question": (
             "I can't reach a language model right now, so I can only analyze "
-            "structured input directly -- try `/pm` with clear figures, or upload "
-            "a tasks / scoring / cost CSV (see demo/sample_data for the format)."
+            "structured input directly -- send me clear figures, or upload a "
+            "tasks / scoring / cost CSV (see demo/sample_data for the format)."
         ),
         "provider": "offline",
     }

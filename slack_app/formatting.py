@@ -1,34 +1,19 @@
-"""Block Kit formatting: turns an orchestrator result into a Slack message,
-including the human-decision buttons and a link to 'show the math'."""
+"""
+Slack rendering. The presentation model lives in channels/brief.py and the
+Block Kit rendering in channels/slack_blocks.py, so Slack and Microsoft Teams
+render the same brief rather than each growing their own copy of it.
+
+This module stays as the Slack app's entry point into that layer.
+"""
 
 from __future__ import annotations
 
+from channels import brief as brief_model
+from channels import slack_blocks
+
 
 def brief_blocks(result: dict, requester: str) -> list:
-    if result["status"] == "needs_info":
-        return [
-            {"type": "section", "text": {"type": "mrkdwn", "text": f":thinking_face: *I need one more thing:*\n{result['question']}"}},
-        ]
-
-    brief = result["brief"]
-    domains = ", ".join(result["specialist_outputs"].keys()) or "none"
-    blocks = [
-        {"type": "header", "text": {"type": "plain_text", "text": "Tarteeb — Executive Brief"}},
-        {"type": "context", "elements": [{"type": "mrkdwn", "text": f"Specialists consulted: *{domains}*  •  requested by <@{requester}>  •  event `{result['event_id']}`"}]},
-        {"type": "section", "text": {"type": "mrkdwn", "text": brief}},
-        {"type": "divider"},
-        {
-            "type": "actions",
-            "block_id": f"human_decision__{result['event_id']}",
-            "elements": [
-                {"type": "button", "text": {"type": "plain_text", "text": "✅ Approve"}, "style": "primary", "action_id": "decision_approve", "value": result["event_id"]},
-                {"type": "button", "text": {"type": "plain_text", "text": "\U0001f4ac Discuss further"}, "action_id": "decision_discuss", "value": result["event_id"]},
-                {"type": "button", "text": {"type": "plain_text", "text": "❌ Reject"}, "style": "danger", "action_id": "decision_reject", "value": result["event_id"]},
-            ],
-        },
-        {"type": "context", "elements": [{"type": "mrkdwn", "text": "_AI advises. Humans decide. This decision is logged to the audit trail._"}]},
-    ]
-    return blocks
+    return slack_blocks.render(brief_model.from_result(result, requester=requester))
 
 
 def decision_confirmation_text(decision_label: str, user_id: str) -> str:
@@ -36,4 +21,4 @@ def decision_confirmation_text(decision_label: str, user_id: str) -> str:
 
 
 def error_blocks(message: str) -> list:
-    return [{"type": "section", "text": {"type": "mrkdwn", "text": f":warning: {message}"}}]
+    return slack_blocks.render(brief_model.error_view(message))
