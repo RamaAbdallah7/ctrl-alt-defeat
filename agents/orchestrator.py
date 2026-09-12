@@ -53,7 +53,9 @@ from engines.stakeholders import analyze_stakeholders, StakeholderError
 from agents.prompts import ROUTER_SYSTEM_PROMPT, ORCHESTRATOR_SYSTEM_PROMPT
 from agents.tool_schemas import TOOLS
 from agents.audit import log_event
+from agents.context import ChannelContext
 from agents.specialists import BY_KEY, specialist_for_tool, report as specialist_report
+from agents.thread_state import apply_delta, describe_changes
 from agents import llm
 
 
@@ -107,7 +109,8 @@ def _safe(fn, *args):
         return {"ok": False, "error": f"Could not read the extracted inputs: {e}"}
 
 
-def route_request(user_text: str, structured_hint: Optional[dict] = None) -> dict:
+def route_request(user_text: str, structured_hint: Optional[dict] = None,
+                  context: "ChannelContext" = None) -> dict:
     """
     Returns {"tool_calls": [{"name":..., "input":...}, ...],
              "clarifying_question": str|None,
@@ -116,11 +119,20 @@ def route_request(user_text: str, structured_hint: Optional[dict] = None) -> dic
     structured_hint: if the caller already knows the shape of the data (e.g.
     a parsed CSV upload), pass it directly and we skip the LLM router call
     entirely -- deterministic and free.
+
+    context: recent channel history. The request often depends on it -- "how
+    are we doing on those numbers" only means something next to the messages
+    that stated them -- so it is passed to the router rather than requiring
+    the triggering message to be self-contained.
     """
     if structured_hint is not None:
         return {"tool_calls": [structured_hint], "clarifying_question": None, "provider": "structured"}
 
-    routed = llm.route_with_tools(ROUTER_SYSTEM_PROMPT, TOOLS, user_text)
+    prompt = user_text
+    if context is not None and not context.is_empty():
+        prompt = f"{context.as_prompt_block()}\n\n---\nTHE REQUEST:\n{user_text}"
+
+    routed = llm.route_with_tools(ROUTER_SYSTEM_PROMPT, TOOLS, prompt)
     if routed is not None:
         # a provider answered but extracted nothing actionable -> ask rather than
         # return an empty brief
@@ -212,12 +224,32 @@ def write_executive_brief(user_text: str, specialist_outputs: dict) -> str:
     return brief if brief else _templated_brief(specialist_outputs)
 
 
-def handle_request(user_text: str, source: str, requester: str, structured_hint: Optional[dict] = None) -> dict:
+def handle_request(user_text: str, source: str, requester: str,
+                   structured_hint: Optional[dict] = None,
+                   context: "ChannelContext" = None,
+                   prior_calls: Optional[list] = None) -> dict:
     """
     Full pipeline: route -> run specialists -> write executive brief -> audit log.
-    Returns a dict ready for formatting into a Slack message (or CLI output).
+
+    context:     recent channel history, so the request need not be self-contained.
+    prior_calls: the structured input from this thread's last run. A follow-up
+                 like "what if we cut three days" is applied as a delta against
+                 it, rather than being re-routed from nothing. If nothing in the
+                 follow-up is understood as a delta, we fall through to a normal
+                 route rather than silently re-running the identical analysis.
     """
-    routing = route_request(user_text, structured_hint)
+    delta_note = ""
+    routing = None
+
+    if prior_calls:
+        adjusted, changes = apply_delta(prior_calls, user_text)
+        if changes:
+            routing = {"tool_calls": adjusted, "clarifying_question": None,
+                       "provider": "thread-delta"}
+            delta_note = describe_changes(changes)
+
+    if routing is None:
+        routing = route_request(user_text, structured_hint, context=context)
 
     if routing["clarifying_question"] and not routing["tool_calls"]:
         event_id = log_event(
@@ -229,12 +261,16 @@ def handle_request(user_text: str, source: str, requester: str, structured_hint:
 
     specialist_outputs = run_specialists(routing["tool_calls"])
     brief = write_executive_brief(user_text, specialist_outputs)
+    if delta_note:
+        brief = f"{delta_note}\n\n{brief}"
 
     event_id = log_event(
         source=source, requester=requester, user_text=user_text,
         provider=routing.get("provider"),
         tool_calls=routing["tool_calls"], specialist_outputs=specialist_outputs,
         brief=brief, outcome="brief_generated",
+        delta=delta_note or None,
+        context_messages=(len(context.messages) if context is not None else 0),
     )
 
     return {
@@ -243,4 +279,6 @@ def handle_request(user_text: str, source: str, requester: str, structured_hint:
         "provider": routing.get("provider"),
         "specialist_outputs": specialist_outputs,
         "brief": brief,
+        "tool_calls": routing["tool_calls"],
+        "delta": delta_note or None,
     }
