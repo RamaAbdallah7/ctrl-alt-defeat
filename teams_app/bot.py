@@ -1,12 +1,17 @@
 """
 Tarteeb for Microsoft Teams.
 
-Three ways in, the same orchestrator out -- deliberately mirroring the Slack
-handlers so the two surfaces cannot drift apart in behaviour:
+This is a full Teams app, not just a bot. Five ways in, the same
+orchestrator out -- deliberately mirroring the Slack handlers so the two
+surfaces cannot drift apart in behaviour:
 
   1. a message to the bot (1:1 or @mention in a channel)
   2. a CSV attached to a message
   3. an Adaptive Card button, which is how a human decision comes back
+  4. a message extension: "Analyse with Tarteeb" on the ... menu of ANY
+     message in a channel, which is the Teams-native move -- the figures
+     someone already posted become the input without retyping them
+  5. a personal/channel tab showing the project-health dashboard
 
 Teams differences that actually bite, handled here:
   * In a channel the message text carries an `<at>Tarteeb</at>` mention that
@@ -29,8 +34,17 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import requests
-from botbuilder.core import ActivityHandler, MessageFactory, TurnContext
-from botbuilder.schema import Attachment, ChannelAccount
+from botbuilder.core import MessageFactory, TurnContext
+from botbuilder.core.teams import TeamsActivityHandler
+from botbuilder.schema import Attachment
+from botbuilder.schema.teams import (
+    MessagingExtensionAttachment,
+    MessagingExtensionAction,
+    MessagingExtensionActionResponse,
+    MessagingExtensionResult,
+    TaskModuleContinueResponse,
+    TaskModuleTaskInfo,
+)
 
 from agents.audit import log_event
 from agents.orchestrator import handle_request
@@ -63,7 +77,7 @@ def _card_activity(view) -> "Activity":
     )
 
 
-class TarteebBot(ActivityHandler):
+class TarteebBot(TeamsActivityHandler):
     async def on_members_added_activity(self, members_added: list, turn_context: TurnContext):
         for member in members_added:
             if member.id != turn_context.activity.recipient.id:
@@ -161,3 +175,89 @@ class TarteebBot(ActivityHandler):
     def _requester(activity) -> str:
         f = getattr(activity, "from_property", None)
         return (getattr(f, "id", None) or getattr(f, "name", None) or "unknown")
+
+
+    # ------------------------------------------------------- message extension
+
+    async def on_teams_messaging_extension_fetch_task(
+        self, turn_context: TurnContext, action: MessagingExtensionAction
+    ) -> MessagingExtensionActionResponse:
+        """
+        Opened from the ... menu on a message. Teams hands us the message that
+        was clicked, so the figures already in the channel become the input --
+        the user does not retype anything.
+        """
+        picked = ""
+        for msg in (getattr(action, "message_payload", None), ):
+            if msg is not None:
+                picked = _strip_html(getattr(msg, "body", None) and msg.body.content or "")
+
+        card = {
+            "type": "AdaptiveCard",
+            "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+            "version": "1.4",
+            "body": [
+                {"type": "TextBlock", "text": "Analyse with Tarteeb",
+                 "weight": "Bolder", "size": "Medium"},
+                {"type": "TextBlock", "wrap": True, "isSubtle": True, "size": "Small",
+                 "text": "A router will wake only the specialists this needs. Edit the text if "
+                         "the message was missing a figure."},
+                {"type": "Input.Text", "id": "question", "isMultiline": True,
+                 "value": picked,
+                 "placeholder": "e.g. we've spent 41,000 of a 120,000 budget and earned 35,000 of value"},
+            ],
+            "actions": [{"type": "Action.Submit", "title": "Run the analysis"}],
+        }
+        return MessagingExtensionActionResponse(
+            task=TaskModuleContinueResponse(
+                value=TaskModuleTaskInfo(
+                    title="Analyse with Tarteeb",
+                    height=340, width=520,
+                    card=Attachment(
+                        content_type="application/vnd.microsoft.card.adaptive",
+                        content=card,
+                    ),
+                )
+            )
+        )
+
+    async def on_teams_messaging_extension_submit_action(
+        self, turn_context: TurnContext, action: MessagingExtensionAction
+    ) -> MessagingExtensionActionResponse:
+        """Run the analysis and hand the brief back as a card to post."""
+        data = action.data or {}
+        text = (data.get("question") or "").strip()
+        if not text:
+            return _me_message("I need something to analyse -- a question, or some figures.")
+
+        requester = self._requester(turn_context.activity)
+        result = handle_request(text, source="teams_message_extension", requester=requester)
+        view = brief_model.from_result(result, requester=requester)
+
+        return MessagingExtensionActionResponse(
+            compose_extension=MessagingExtensionResult(
+                type="result",
+                attachment_layout="list",
+                attachments=[
+                    MessagingExtensionAttachment(
+                        content_type=teams_cards.CARD_CONTENT_TYPE,
+                        content=teams_cards.render(view),
+                    )
+                ],
+            )
+        )
+
+
+def _me_message(text: str) -> MessagingExtensionActionResponse:
+    return MessagingExtensionActionResponse(
+        compose_extension=MessagingExtensionResult(type="message", text=text)
+    )
+
+
+_TAG = re.compile(r"<[^>]+>")
+
+
+def _strip_html(html: str) -> str:
+    """Teams message bodies arrive as HTML; the router wants the words."""
+    text = _TAG.sub(" ", html or "")
+    return re.sub(r"\s+", " ", text).replace("&nbsp;", " ").strip()

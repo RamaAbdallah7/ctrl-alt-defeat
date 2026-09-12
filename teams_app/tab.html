@@ -1,7 +1,15 @@
-<title>Tarteeb Workspace</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tarteeb &mdash; Project health</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://res.cdn.office.net/teams-js/2.24.0/js/MicrosoftTeams.min.js"
+        integrity="sha384-hK9Yn9cLSbaULIPPQqjB0vURcq35W1lJnb3xJqZWLBLCiHYWFOPfJRxKMSOzxvSF"
+        crossorigin="anonymous"></script>
 <style>
 :root{
   --paper:#f3ece0; --surface:#fffdf8; --surface-2:#faf4e8; --surface-3:#eee3d0;
@@ -352,82 +360,23 @@ tr.crit td:first-child{font-weight:600;color:var(--critical)}
   color:var(--line-2);font-size:12px}
 .arrowgap.crit{color:var(--critical)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* the tab is embedded in Teams chrome, so it owns no app shell of its own */
+body{padding:0}
+.dash{padding:16px 18px 28px}
+.tabbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;
+  border-bottom:1px solid var(--line);background:var(--surface)}
+.tabbar .w{font-family:var(--f-disp);font-weight:700;font-size:15px}
+.tabbar .ctx{font-family:var(--f-mono);font-size:10.5px;color:var(--ink-3)}
 </style>
-
-<!-- ============================= SIGN IN ============================= -->
-<div class="signin" id="signin">
-  <div class="card">
-    <div class="top">
-      <div class="mark"><span class="glyph">T</span><span class="wm">Tarteeb</span></div>
-      <h1>Sign in to continue</h1>
-      <p class="sub">Tarteeb records who approved every decision, so it needs to know who you are
-        before it will run anything. Choose a member of the demo workspace.</p>
-    </div>
-    <div class="list" id="whoList"></div>
-    <div class="foot">
-      This is a demonstration workspace with pre-set identities &mdash; no password is asked for and
-      none should ever be entered. In the real deployment identity comes from Slack or Microsoft
-      Teams, which have already authenticated the person before the message reaches Tarteeb.
-    </div>
-  </div>
-</div>
-
-<!-- ============================= APP ============================= -->
-<div class="app" id="app">
-  <div class="chrome">
-    <div class="l">
-      <span class="wm">Tarteeb</span>
-      <span class="ws">Masdar Delivery Office &middot; workspace</span>
-    </div>
-    <div class="r">
-      <div class="userchip"><span class="av" id="meAv"></span>
-        <span><span class="nm" id="meNm"></span> <span class="verified" id="meVf"></span></span>
-      </div>
-      <button id="themeBtn" type="button">Theme</button>
-      <button id="outBtn" type="button">Sign out</button>
-    </div>
-  </div>
-
-  <div class="main">
-    <aside class="sidebar">
-      <div class="sect">Views</div>
-      <div id="views"></div>
-      <div class="sect">Channels</div>
-      <div id="chans"></div>
-      <div class="sect">Specialist agents</div>
-      <div id="agents"></div>
-    </aside>
-
-    <div style="display:flex;flex-direction:column;min-width:0">
-      <div class="thread" id="thread"></div>
-      <div class="dash" id="dash" hidden></div>
-      <div class="composer" id="composer">
-        <div class="prompts" id="prompts"></div>
-        <div class="cbox">
-          <span class="at">@Tarteeb</span>
-          <input id="ask" type="text" autocomplete="off"
-                 placeholder="Ask about the schedule, the budget, a vendor choice, the business case...">
-          <button id="send" type="button">Send</button>
-        </div>
-      </div>
-    </div>
-
-    <aside class="rightrail">
-      <div class="rrh">
-        <span class="t">Audit ledger</span>
-        <span class="chainstate" id="chainState">chain intact</span>
-      </div>
-      <div class="ledger" id="ledger"></div>
-      <div class="verdict" id="verdict"></div>
-      <div class="rrf">
-        <button id="verifyBtn" type="button">Verify chain</button>
-        <button id="tamperBtn" class="danger" type="button">Tamper test</button>
-      </div>
-    </aside>
-  </div>
-</div>
-
+</head>
+<body>
+<div class="tabbar"><span class="w">Tarteeb</span><span class="ctx" id="ctx">project health</span></div>
+<div class="dash" id="dash"></div>
 <script>
+const $=id=>document.getElementById(id);
+const money=n=>(n<0?'-':'')+'$'+Math.abs(Math.round(n)).toLocaleString();
+const num=n=>(+n).toLocaleString(undefined,{maximumFractionDigits:2});
 /* ============================ ENGINES ============================ */
 /* Ports of engines/*.py. No LLM touches a number on this page. */
 
@@ -655,510 +604,6 @@ const SCEN=[
     scope_creep:scopeCreep(WBS_BASE,WBS_NOW)}}},
 ];
 
-/* ============================ FINDINGS ============================ */
-const money=n=>(n<0?'-':'')+'$'+Math.abs(Math.round(n)).toLocaleString();
-const num=n=>(+n).toLocaleString(undefined,{maximumFractionDigits:2});
-const M=s=>`<b>${s}</b>`;
-
-const FINDING={
- schedule(r){const slack=r.tasks.filter(t=>!t.crit);
-  const w=slack.reduce((a,b)=>a.tf>b.tf?a:b,slack[0]);
-  return{tone:'',text:`The project runs ${M(r.duration+' days')}. ${r.parallel
-      ? `${M(r.paths.length+' paths')} are critical at once (${r.paths.map(p=>p.join(' \u2192 ')).join('; ')})`
-      : `The critical path is ${M(r.path.join(' \u2192 '))}`} \u2014 every day lost on those tasks is a day lost on the project.
-    The most flexible task is ${w.name}, holding ${M(w.tf+' days')} of total float.`}},
- crashing(r){ if(!r.saved)return{tone:'warn',text:'The schedule cannot be bought shorter: no critical activity has crash room left.'};
-  return{tone:r.reached?'good':'warn',text:`The schedule can be compressed from ${M(r.baseDur+' days')} to
-    ${M(r.finalDur+' days')} \u2014 ${M(r.saved+' days')} saved for ${M(money(r.cost))},
-    about ${M(money(r.per)+'/day')}. ${r.finalParallel
-      ? `After compressing, ${M(r.finalPaths.length+' paths')} are critical at once
-         (${r.finalPaths.map(p=>M(p.join(' \u2192 '))).join('; ')}) \u2014 every one of them now has to hold,
-         so there is no slack left anywhere to absorb a slip.`
-      : `After compressing, the critical path becomes ${M(r.finalPath.join(' \u2192 '))}.`}
-    ${r.reached?'':`The ${r.target}-day target is <strong>not</strong> reachable with money alone \u2014 that needs scope cut or fast tracking.`}`}},
- fast_track(r){ if(!r.candidates.length)return{tone:'',text:'No sequential critical-path activities available to overlap.'};
-  const b=r.candidates[0];
-  return{tone:'warn',text:`The best overlap is ${M(b.pred)} with ${M(b.succ)}, worth up to ${M(b.save+' days')}.
-    This buys time with risk rather than money: starting the second before the first finishes means working
-    from unfinished input, which is the classic cause of rework.`}},
- cost(r){return{tone:r.cpi<1?'bad':'good',text:`CPI is ${M(r.cpi.toFixed(2))} and SPI is ${M(r.spi.toFixed(2))} \u2014 the project has
-    earned ${M(money(r.ev))} of value against ${M(money(r.ac))} spent. At the current burn the estimate at
-    completion is ${M(money(r.eac))} against a ${M(money(r.bac))} budget (${M(money(r.vac))}).
-    To still land on budget the remaining work must run at a TCPI of ${M(r.tcpiBac.toFixed(2))} \u2014
-    well above the ${r.cpi.toFixed(2)} achieved so far. On schedule performance the forecast is
-    ${M(r.estDuration.toFixed(1)+' months')} against ${r.plannedDuration} planned.`}},
- financial(r){return{tone:r.npv>0?'good':'bad',text:`At a ${M((r.rate*100).toFixed(0)+'%')} discount rate the net present value is
-    ${M(money(r.npv))} on ${M(money(r.totalCost))} of discounted cost \u2014 an ROI of ${M((r.roi*100).toFixed(1)+'%')},
-    paying back in ${M(r.payback!=null?'year '+r.payback.toFixed(2):'never, within the years given')}.`}},
- pert(r){return{tone:r.prob!=null&&r.prob<.5?'bad':'warn',text:`The three-point expectation is
-    ${M(r.expected.toFixed(1)+' '+r.unit)} with a standard deviation of ${M(r.sd.toFixed(1))};
-    95% of outcomes fall between ${M(r.r95[0].toFixed(1))} and ${M(r.r95[1].toFixed(1))}.
-    The chance of coming in within ${M(r.target+' '+r.unit)} is ${M((r.prob*100).toFixed(0)+'%')}
-    ${r.prob<.5?'\u2014 below an even chance, so that target is optimistic against these estimates.':'.'}`}},
- estimate(r){return{tone:r.within?'warn':'bad',text:`That is a ${M(r.type.toUpperCase())} estimate, carrying a
-    ${M((r.lo*100).toFixed(0)+'%')} to ${M('+'+(r.hi*100).toFixed(0)+'%')} range \u2014 ${M(money(r.est))} honestly
-    means ${M(money(r.low))} to ${M(money(r.high))}. The ${M(money(r.budget))} budget
-    ${r.within?'falls inside that range, which is the floor of what it can tell you.':'sits outside that range and is not defensible against this estimate.'}`}},
- wbs(r){ if(r.violations.length){const v=r.violations[0];
-    return{tone:'bad',text:`The breakdown does not add up: ${M(v.name)} states ${M(money(v.stated))} but its
-      children total ${M(money(v.children))} (${M((v.diff>0?'+':'')+money(v.diff))}).
-      ${r.packages.length} work packages in total.`}}
-  return{tone:'good',text:`The breakdown is internally consistent: ${M(r.packages.length+' work packages')}
-    rolling up to ${M(money(r.total))}.`}},
- scope_creep(r){ if(!r.added.length&&!r.removed.length&&!r.changed.length)
-    return{tone:'good',text:'The current breakdown matches the approved baseline \u2014 no scope change.'};
-  return{tone:'bad',text:`Against the approved baseline: ${M(r.added.length+' item(s) added')}
-    (${r.added.map(a=>a.name).join(', ')})${r.removed.length?', '+r.removed.length+' removed':''}.
-    Total moved ${M((r.growth>0?'+':'')+money(r.growth))} \u2014 ${M((r.pct>0?'+':'')+r.pct.toFixed(1)+'%')} against
-    baseline. Anything added without an approved change request is scope creep.`}},
- scoring(r){const t=r.ranked[0],s=r.ranked[1],gap=t.score-s.score;
-  return{tone:gap<5?'warn':'good',text:`${M(t.option)} ranks first on the weighted criteria with ${M(t.score)}.
-    ${gap<5?`But ${M(s.option)} scores ${M(s.score)} \u2014 a gap of ${M(gap.toFixed(2))} points is inside the noise
-    of the weights, so this is effectively a tie and should not be decided on the score alone.`
-    :`${s.option} follows at ${M(s.score)}, ${M(gap.toFixed(2))} points back.`}`}},
-};
-
-/* ============================ TILES ============================ */
-function tilesFor(out){
-  const t=[];
-  if(out.schedule)t.push({k:'Duration',v:out.schedule.duration+'d',n:'critical path '+out.schedule.path.join('-')});
-  if(out.crashing&&out.crashing.saved)t.push({k:'Compressed to',v:out.crashing.finalDur+'d',
-    n:money(out.crashing.cost)+' to save '+out.crashing.saved+'d',c:out.crashing.reached?'good':'warn'});
-  if(out.cost){t.push({k:'CPI',v:out.cost.cpi.toFixed(2),n:'cost performance',c:out.cost.cpi<1?'bad':'good'});
-    t.push({k:'SPI',v:out.cost.spi.toFixed(2),n:'schedule performance',c:out.cost.spi<1?'bad':'good'});
-    t.push({k:'EAC',v:money(out.cost.eac),n:money(out.cost.vac)+' vs budget',c:out.cost.vac<0?'bad':'good'})}
-  if(out.financial){t.push({k:'NPV',v:money(out.financial.npv),n:(out.financial.rate*100)+'% discount',
-      c:out.financial.npv>0?'good':'bad'});
-    t.push({k:'ROI',v:(out.financial.roi*100).toFixed(0)+'%',n:'on discounted cost',c:out.financial.roi>0?'good':'bad'});
-    t.push({k:'Payback',v:out.financial.payback!=null?'yr '+out.financial.payback.toFixed(1):'never',n:'discounted'})}
-  if(out.pert){t.push({k:'Expected',v:out.pert.expected.toFixed(1)+'d',n:'\u00b1'+out.pert.sd.toFixed(1)+' sd'});
-    t.push({k:'P(hit target)',v:(out.pert.prob*100).toFixed(0)+'%',n:'within '+out.pert.target+' days',
-      c:out.pert.prob<.5?'bad':'good'})}
-  if(out.scoring){const r=out.scoring.ranked;t.push({k:'Top option',v:r[0].option.replace('Option ',''),
-    n:r[0].score+' vs '+r[1].score,c:(r[0].score-r[1].score)<5?'warn':'good'})}
-  if(out.scope_creep)t.push({k:'Scope vs baseline',v:(out.scope_creep.pct>0?'+':'')+out.scope_creep.pct.toFixed(1)+'%',
-    n:money(out.scope_creep.growth)+' added',c:out.scope_creep.growth>0?'bad':'good'});
-  if(out.estimate)t.push({k:'Estimate range',v:money(out.estimate.low)+'\u2013'+money(out.estimate.high),
-    n:out.estimate.type.toUpperCase()+' accuracy band'});
-  return t;
-}
-
-/* ============================ BRIEF ============================ */
-function buildBrief(scn,out){
-  const risks=[],miss=[],next=[];
-  if(out.schedule)risks.push(`the finish date rests entirely on ${out.schedule.path.join('\u2013')}`);
-  if(out.crashing&&!out.crashing.reached)
-    risks.push(`the ${out.crashing.target}-day target cannot be bought with money alone`);
-  if(out.cost&&out.cost.cpi<1&&out.cost.spi<1)
-    risks.push(`the project is over budget and behind schedule at once, forecasting ${money(out.cost.eac)} against ${money(out.cost.bac)}`);
-  if(out.scoring){const r=out.scoring.ranked;if(r[0].score-r[1].score<5)
-    risks.push(`${r[0].option} and ${r[1].option} are effectively tied, so the matrix cannot decide this on its own`)}
-  if(out.scope_creep&&out.scope_creep.added.length)
-    risks.push(`${out.scope_creep.added.length} item(s) entered scope after baseline, ${money(out.scope_creep.growth)} unapproved`);
-  if(out.wbs&&out.wbs.violations.length)
-    risks.push(`the work breakdown is short by ${money(Math.abs(out.wbs.violations[0].diff))} against its own parent`);
-  if(out.pert&&out.pert.prob<.5)
-    risks.push(`there is only a ${(out.pert.prob*100).toFixed(0)}% chance of hitting the ${out.pert.target}-day target`);
-  if(out.financial&&out.financial.npv>0)
-    risks.push(`the business case holds at ${money(out.financial.npv)} NPV, so the pressure is delivery, not justification`);
-
-  if(out.cost)miss.push('actual cost by WBS element, to locate the overrun rather than just size it');
-  if(out.scoring)miss.push('who set the criterion weights, since the ranking turns on them');
-  if(out.crashing)miss.push('crash costs for the tasks that currently have none');
-  if(out.scope_creep)miss.push('the change requests, if any, behind the new items');
-  if(!miss.length)miss.push('nothing material \u2014 the engines had what they needed');
-
-  if(out.crashing&&!out.crashing.reached)next.push('accept day '+out.crashing.finalDur);
-  if(out.crashing)next.push('fund '+money(out.crashing.cost)+' of compression');
-  if(out.fast_track&&out.fast_track.candidates.length)next.push('overlap '+out.fast_track.candidates[0].pred+' and '+out.fast_track.candidates[0].succ+' and carry the rework risk');
-  if(out.scoring)next.push('run a tie-break on the two leading options');
-  if(out.scope_creep&&out.scope_creep.added.length)next.push('send the new scope back as a change request');
-  if(out.cost&&!next.length)next.push('re-baseline against the forecast');
-  if(!next.length)next.push('proceed as planned');
-
-  const n=Object.keys(out).length;
-  return{
-   summary:`${n} specialist${n!==1?'s':''} reported on this. ${
-     out.cost&&out.cost.cpi<1?`Project X is over budget and behind schedule`:
-     out.schedule?`Project X currently runs ${out.schedule.duration} days`:
-     out.financial?`The business case is ${out.financial.npv>0?'sound':'not sound'}`:
-     `The analysis is complete`}, and the decision below is yours, not the copilot's.`,
-   risks:risks.length?risks.map(r=>r[0].toUpperCase()+r.slice(1)).join('. ')+'.':'Nothing stands out across the specialists that reported.',
-   missing:miss.join('; ')+'.',
-   next:next.slice(0,3).map((s,i)=>`${i+1}) ${s}`).join('  ')
-  };
-}
-
-/* ============================ NETWORK DIAGRAM ============================ */
-function drawNetwork(r){
-  const lvl={},T=r.map;
-  r.tasks.forEach(t=>{lvl[t.id]=t.preds.length?Math.max(...t.preds.map(p=>lvl[p]))+1:0});
-  const cols={}; Object.entries(lvl).forEach(([id,l])=>(cols[l]=cols[l]||[]).push(id));
-  const CW=132,CH=62,GX=48,GY=22,PAD=14;
-  const maxRow=Math.max(...Object.values(cols).map(c=>c.length));
-  const W=Object.keys(cols).length*(CW+GX)-GX+PAD*2, H=maxRow*(CH+GY)-GY+PAD*2;
-  const pos={};
-  Object.entries(cols).forEach(([l,ids])=>{const off=(maxRow-ids.length)*(CH+GY)/2;
-    ids.forEach((id,i)=>pos[id]={x:PAD+l*(CW+GX),y:PAD+off+i*(CH+GY)})});
-  let edges='',nodes='';
-  r.tasks.forEach(t=>t.preds.forEach(p=>{
-    const a=pos[p],b=pos[t.id],crit=T[p].crit&&t.crit;
-    const x1=a.x+CW,y1=a.y+CH/2,x2=b.x,y2=b.y+CH/2,mx=(x1+x2)/2;
-    edges+=`<path d="M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}" fill="none"
-      stroke="${crit?'var(--critical)':'var(--line-2)'}" stroke-width="${crit?2.2:1.3}"
-      marker-end="url(#${crit?'ac':'an'})"/>`}));
-  r.tasks.forEach(t=>{const p=pos[t.id];
-    nodes+=`<g>
-      <rect x="${p.x}" y="${p.y}" width="${CW}" height="${CH}" rx="3"
-        fill="${t.crit?'var(--critical-soft)':'var(--surface-2)'}"
-        stroke="${t.crit?'var(--critical)':'var(--line-2)'}" stroke-width="${t.crit?1.8:1}"/>
-      <text x="${p.x+9}" y="${p.y+18}" font-family="var(--f-mono)" font-size="12" font-weight="600"
-        fill="${t.crit?'var(--critical)':'var(--ink)'}">${t.id}</text>
-      <text x="${p.x+26}" y="${p.y+18}" font-family="var(--f-body)" font-size="10.5"
-        fill="var(--ink-2)">${t.name.length>17?t.name.slice(0,16)+'\u2026':t.name}</text>
-      <text x="${p.x+9}" y="${p.y+35}" font-family="var(--f-mono)" font-size="10"
-        fill="var(--ink-3)">ES ${t.es} \u00b7 EF ${t.ef}</text>
-      <text x="${p.x+9}" y="${p.y+50}" font-family="var(--f-mono)" font-size="10"
-        fill="${t.tf>0?'var(--warn)':'var(--ink-3)'}">${t.duration}d \u00b7 float ${t.tf}</text>
-    </g>`});
-  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
-    aria-label="Network diagram, critical path in red">
-    <defs>
-      <marker id="an" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-        <path d="M0 0 L7 3.5 L0 7 z" fill="var(--line-2)"/></marker>
-      <marker id="ac" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-        <path d="M0 0 L7 3.5 L0 7 z" fill="var(--critical)"/></marker>
-    </defs>${edges}${nodes}</svg>`;
-}
-function floatTable(r){
-  return `<div class="tablewrap"><table><thead><tr><th>Task</th><th>Dur</th><th>ES</th><th>EF</th>
-    <th>LS</th><th>LF</th><th>Free float</th><th>Total float</th><th></th></tr></thead><tbody>${
-    r.tasks.map(t=>`<tr class="${t.crit?'crit':''}"><td>${t.id} \u00b7 ${t.name}</td><td>${t.duration}</td>
-      <td>${t.es}</td><td>${t.ef}</td><td>${t.ls}</td><td>${t.lf}</td><td>${t.ff}</td><td>${t.tf}</td>
-      <td>${t.crit?'<span class="pill c">critical</span>':''}</td></tr>`).join('')}</tbody></table></div>`;
-}
-
-
-/* ============================ IDENTITY ============================ */
-const PEOPLE=[
- {id:'u_khadeja',name:'Khadeja Ahmed',role:'Project manager',rights:'can approve',color:'#7a4f1c',init:'KA'},
- {id:'u_rama',   name:'Rama Abdallah', role:'Delivery lead',  rights:'can approve',color:'#4f6b2a',init:'RA'},
- {id:'u_semhal', name:'Semhal Desta',  role:'Finance partner',rights:'can approve',color:'#9e2b25',init:'SD'},
- {id:'u_ina',    name:'Ina S.',        role:'Engineering',    rights:'view only',  color:'#6b5840',init:'IS'},
-];
-let me=null;
-
-/* ============================ AUDIT LEDGER ============================
-   Every entry is hash-chained to the one before it: hash = SHA-256 of the
-   previous hash concatenated with this entry's canonical JSON. Change any
-   earlier entry and every hash after it stops matching -- which is what
-   "Verify chain" and "Tamper test" actually demonstrate. Real SHA-256 via
-   the Web Crypto API, not a stand-in.                                    */
-let ledger=[];
-const GENESIS='0'.repeat(64);
-
-async function sha256(str){
-  if(!(window.crypto&&crypto.subtle))return 'unavailable-insecure-context';
-  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
-  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-function canonical(e){
-  return JSON.stringify({seq:e.seq,ts:e.ts,event:e.event,actor:e.actor,detail:e.detail});
-}
-async function append(event,detail){
-  const prev=ledger.length?ledger[ledger.length-1].hash:GENESIS;
-  const e={seq:ledger.length+1,ts:new Date().toISOString(),event,
-    actor:me?me.id:'anonymous',detail,prev};
-  e.hash=await sha256(prev+canonical(e));
-  ledger.push(e); renderLedger(); return e;
-}
-async function verifyChain(){
-  let prev=GENESIS;
-  for(const e of ledger){
-    const expect=await sha256(prev+canonical(e));
-    if(e.prev!==prev||e.hash!==expect)return {ok:false,at:e.seq};
-    prev=e.hash;
-  }
-  return {ok:true,at:null};
-}
-function renderLedger(broken){
-  const L=$('ledger');
-  L.innerHTML=ledger.slice().reverse().map(e=>{
-    const bad=broken&&e.seq>=broken;
-    return `<div class="entry ${bad?'tampered':''}">
-      <div class="e1"><span class="ev">#${e.seq} ${e.event}</span>
-        <span class="tm">${new Date(e.ts).toLocaleTimeString([],{hour12:false})}</span></div>
-      <div class="dt">${e.detail}</div>
-      <div class="hs">${e.hash.slice(0,32)}...</div></div>`}).join('')
-    ||'<div class="entry"><div class="dt" style="color:var(--ink-3)">Nothing recorded yet.</div></div>';
-}
-
-/* ============================ APP STATE ============================ */
-const $=id=>document.getElementById(id);
-let lastRun=null, view='conversation';
-
-function avatar(p,cls){return `<span class="av ${cls||''}" style="background:${p.color}">${p.init}</span>`}
-const now=()=>new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
-
-/* ---------- sign in ---------- */
-$('whoList').innerHTML=PEOPLE.map(p=>`
-  <button class="who" type="button" data-id="${p.id}">
-    ${avatar(p)}
-    <span><span class="nm">${p.name}</span><br><span class="rl">${p.role} &middot; ${p.rights}</span></span>
-    <span class="go">Continue &rarr;</span>
-  </button>`).join('');
-
-$('whoList').addEventListener('click',async e=>{
-  const b=e.target.closest('.who'); if(!b)return;
-  me=PEOPLE.find(p=>p.id===b.dataset.id);
-  $('signin').style.display='none'; $('app').classList.add('on');
-  $('meAv').outerHTML=avatar(me).replace('class="av "','class="av"');
-  $('meNm').textContent=me.name;
-  $('meVf').textContent=me.rights==='can approve'?'verified':'view only';
-  await append('session.start',`${me.name} (${me.role}) signed in; ${me.rights}`);
-  boot();
-});
-
-$('outBtn').addEventListener('click',async()=>{
-  await append('session.end',`${me.name} signed out`);
-  me=null; lastRun=null; $('app').classList.remove('on'); $('signin').style.display='grid';
-});
-
-$('themeBtn').addEventListener('click',()=>{
-  const r=document.documentElement;
-  const dark=r.getAttribute('data-theme')==='dark'||
-    (!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme:dark)').matches);
-  r.setAttribute('data-theme',dark?'light':'dark');
-  if(view==='dashboard')renderDash();
-});
-
-/* ---------- sidebar ---------- */
-const VIEWS=[{id:'conversation',label:'# project-x'},{id:'dashboard',label:'Project health'}];
-function renderSidebar(){
-  $('views').innerHTML=VIEWS.map(v=>
-    `<button class="chan" type="button" data-view="${v.id}" aria-current="${v.id===view}">${v.label}</button>`).join('');
-  $('chans').innerHTML=['# steering','# finance','# delivery'].map(c=>
-    `<button class="chan" type="button" disabled style="opacity:.45;cursor:default">${c}</button>`).join('');
-}
-$('views').addEventListener('click',e=>{
-  const b=e.target.closest('[data-view]'); if(!b)return;
-  view=b.dataset.view; renderSidebar();
-  const dash=view==='dashboard';
-  $('dash').hidden=!dash; $('thread').hidden=dash; $('composer').style.display=dash?'none':'block';
-  if(dash)renderDash();
-});
-
-function renderAgents(woke,done){
-  $('agents').innerHTML=ROSTER.map(a=>{
-    const st=done.includes(a.k)?'done':woke.includes(a.k)?'woke':'';
-    return `<div class="agentrow ${st}"><span class="d"></span><span class="n">${a.n}</span></div>`}).join('');
-}
-
-/* ---------- conversation ---------- */
-function postUser(text){
-  $('thread').insertAdjacentHTML('beforeend',`
-    <div class="msg">${avatar(me)}
-      <div><div class="hd"><span class="who2">${me.name}</span><span class="ts">${now()}</span></div>
-      <div class="txt">@Tarteeb ${text}</div></div></div>`);
-  scroll();
-}
-function scroll(){const t=$('thread'); t.scrollTop=t.scrollHeight}
-
-const STEPS=[
- {k:'auth',  lb:'Verify requester',   de:()=>`${me.name} is signed in and ${me.rights}. Recorded against this request.`},
- {k:'route', lb:'Route to specialists',de:s=>`Router read the request and woke ${s.wake.length} of 10 specialists.`},
- {k:'engine',lb:'Run engines',        de:()=>'Deterministic Python-equivalent engines. The model computes nothing.'},
- {k:'brief', lb:'Consolidate brief',  de:()=>'Executive Orchestrator merged every specialist into one brief.'},
- {k:'await', lb:'Await human decision',de:()=>'Tarteeb advises. It will not decide.'},
-];
-
-async function run(scn){
-  if(!me)return;
-  postUser(scn.ask);
-  await append('request',`"${scn.ask.slice(0,70)}" from ${me.name}`);
-
-  const id='run'+Date.now();
-  $('thread').insertAdjacentHTML('beforeend',`
-    <div class="msg"><span class="av" style="background:var(--gold);color:#2b1e10">T</span>
-      <div><div class="hd"><span class="who2">Tarteeb</span><span class="bot">agent</span>
-        <span class="ts">${now()}</span></div>
-        <div class="run" id="${id}">
-          <div class="runhd"><span class="t">Working</span><span class="el" id="${id}_el"></span></div>
-          <div class="steps">${STEPS.map(s=>`
-            <div class="step" id="${id}_${s.k}">
-              <span class="ic">${STEPS.indexOf(s)+1}</span>
-              <span><span class="lb">${s.lb}</span><span class="de" id="${id}_${s.k}_d"></span>
-                ${s.k==='engine'?`<span class="enginechips" id="${id}_chips"></span>`:''}</span>
-              <span class="ms" id="${id}_${s.k}_m"></span>
-            </div>`).join('')}</div>
-        </div>
-        <div id="${id}_out"></div>
-      </div></div>`);
-  scroll();
-
-  const t0=performance.now();
-  const mark=(k,state,txt,ms)=>{
-    const el=$(`${id}_${k}`); el.className='step '+state;
-    el.querySelector('.ic').innerHTML=state==='ok'?'&check;':(state==='on'?'<span class="spin"></span>':'');
-    if(txt)$(`${id}_${k}_d`).textContent=txt;
-    if(ms!=null)$(`${id}_${k}_m`).textContent=ms.toFixed(1)+' ms';
-  };
-  const pause=ms=>new Promise(r=>setTimeout(r,ms));
-
-  mark('auth','on'); await pause(240);
-  mark('auth','ok',STEPS[0].de(),0.2);
-
-  mark('route','on'); await pause(330);
-  mark('route','ok',STEPS[1].de(scn),1.1);
-  $(`${id}_chips`).innerHTML=scn.wake.map(k=>`<span class="ec" id="${id}_ec_${k}">${BY[k].n}</span>`).join('');
-  renderAgents(scn.wake,[]);
-  await append('route',`${scn.wake.length} specialist(s): ${scn.wake.map(k=>BY[k].n).join(', ')}`);
-
-  mark('engine','on',STEPS[2].de());
-  const e0=performance.now();
-  const out=scn.run();                       // the real computation
-  const compute=performance.now()-e0;
-  const keys=Object.keys(out);
-  for(const k of keys){ await pause(150);
-    const chip=$(`${id}_ec_${k}`); if(chip)chip.className='ec ran';
-    renderAgents(scn.wake,keys.slice(0,keys.indexOf(k)+1));
-  }
-  mark('engine','ok',`${keys.length} engine(s) returned. Real compute time below; the pauses above are for legibility.`,compute);
-  await append('engines',`${keys.length} engine(s) ran in ${compute.toFixed(2)} ms`);
-
-  mark('brief','on'); await pause(300);
-  mark('brief','ok',STEPS[3].de(),0.8);
-  mark('await','on',STEPS[4].de());
-
-  const total=performance.now()-t0;
-  $(`${id}_el`).textContent=`${keys.length} specialists - ${total.toFixed(0)} ms wall`;
-  $(`${id}`).querySelector('.runhd .t').textContent='Complete';
-
-  const ev=await append('brief','Executive brief generated; awaiting human decision');
-  lastRun={scn,out,eventSeq:ev.seq,hash:ev.hash};
-  renderOutput(id,scn,out,ev);
-  scroll();
-}
-
-function renderOutput(id,scn,out,ev){
-  const keys=Object.keys(out);
-  const b=buildBrief(scn,out);
-  const canDecide=me.rights==='can approve';
-  $(`${id}_out`).innerHTML=`
-    <div class="brief">
-      <div class="bh"><span class="t">Executive brief</span>
-        <span class="m">event #${ev.seq} &middot; ${ev.hash.slice(0,12)}...</span></div>
-      <div class="tiles">${tilesFor(out).map(t=>
-        `<div class="tile"><div class="k">${t.k}</div><div class="v ${t.c||''}">${t.v}</div>
-         <div class="n">${t.n}</div></div>`).join('')}</div>
-      ${keys.map(k=>{const f=FINDING[k](out[k]),a=BY[k];
-        return `<div class="finding ${f.tone}"><div class="st"></div><div>
-          <div class="fh"><span class="fn">${a.n}</span><span class="fr">${a.r}</span></div>
-          <div class="ft">${f.text}</div></div></div>`}).join('')}
-      <div class="bsec"><div class="k">Summary</div><p>${b.summary}</p></div>
-      <div class="bsec risk"><div class="k">Risks &amp; conflicts</div><p>${b.risks}</p></div>
-      <div class="bsec"><div class="k">Missing information</div><p>${b.missing}</p></div>
-      <div class="bsec"><div class="k">Recommended next step</div><p>${b.next}</p></div>
-      <div class="decide">
-        <button class="btn ok" data-d="Approved" ${canDecide?'':'disabled'} type="button">Approve</button>
-        <button class="btn" data-d="Flagged for discussion" ${canDecide?'':'disabled'} type="button">Discuss</button>
-        <button class="btn no" data-d="Rejected" ${canDecide?'':'disabled'} type="button">Reject</button>
-        <span class="as">${canDecide?'signing as '+me.name:me.name+' has view-only rights'}</span>
-      </div>
-    </div>
-    ${out.schedule?`<div class="brief"><div class="bh"><span class="t">Network diagram</span>
-      <span class="m">${out.schedule.duration} days</span></div>
-      <div class="legend"><span><i style="background:var(--critical)"></i>critical path</span>
-        <span><i style="background:var(--line-2)"></i>has float</span></div>
-      <div class="netwrap">${drawNetwork(out.schedule)}${floatTable(out.schedule)}</div></div>`:''}
-    <div id="${id}_receipt"></div>`;
-
-  $(`${id}_out`).querySelector('.decide').addEventListener('click',async e=>{
-    const btn=e.target.closest('[data-d]'); if(!btn||btn.disabled)return;
-    $(`${id}_out`).querySelectorAll('[data-d]').forEach(x=>x.disabled=true);
-    const d=btn.dataset.d;
-    const entry=await append('human_decision',`${d} by ${me.name} (${me.role}) for brief #${ev.seq}`);
-    $(`${id}_${'await'}`).className='step ok';
-    $(`${id}_await`).querySelector('.ic').innerHTML='&check;';
-    $(`${id}_await_d`).textContent=`${d} by ${me.name}.`;
-    $(`${id}_receipt`).innerHTML=`
-      <div class="receipt">
-        <div class="rh"><span class="rt">${d} &mdash; decision recorded</span></div>
-        <dl class="kv">
-          <dt>decided by</dt><dd>${me.name} (${me.role})</dd>
-          <dt>at</dt><dd>${new Date(entry.ts).toUTCString()}</dd>
-          <dt>for brief</dt><dd>event #${ev.seq}</dd>
-          <dt>entry</dt><dd>#${entry.seq}</dd>
-          <dt>prev hash</dt><dd class="hash">${entry.prev}</dd>
-          <dt>this hash</dt><dd class="hash">${entry.hash}</dd>
-        </dl>
-        <div class="secnote" style="padding:8px 0 0">SHA-256 over the previous hash plus this entry.
-          Altering any earlier entry changes every hash after it &mdash; try the tamper test in the ledger.</div>
-      </div>`;
-    scroll();
-    if(view==='dashboard')renderDash();
-  });
-}
-
-/* ---------- composer ---------- */
-$('prompts').innerHTML=SCEN.map(s=>
-  `<button class="p" type="button" data-id="${s.id}">${s.label}</button>`).join('');
-$('prompts').addEventListener('click',e=>{
-  const b=e.target.closest('.p'); if(!b)return;
-  const scn=SCEN.find(s=>s.id===b.dataset.id);
-  $('ask').value=scn.ask; $('send').focus();
-});
-async function submit(){
-  const text=$('ask').value.trim(); if(!text)return;
-  const scn=SCEN.find(s=>s.ask===text)||matchScenario(text);
-  $('ask').value=''; $('send').disabled=true;
-  await run(scn); $('send').disabled=false;
-}
-$('send').addEventListener('click',submit);
-$('ask').addEventListener('keydown',e=>{if(e.key==='Enter')submit()});
-
-/* A tiny keyword router so free text still lands somewhere sensible.
-   The real router is an LLM with tool use; this stands in for it offline. */
-function matchScenario(text){
-  const t=text.toLowerCase();
-  const rules=[[/(crash|faster|earlier|day 13|speed)/,'recover'],
-    [/(vendor|choose|pick|option|compare)/,'vendor'],
-    [/(budget|cpi|spi|spend|cost|earned)/,'budget'],
-    [/(worth|npv|roi|payback|invest|business case)/,'worth'],
-    [/(confident|estimate|probab|odds|risk of)/,'confidence'],
-    [/(scope|creep|baseline|grown|added)/,'scope'],
-    [/(everything|all|full|review|steering)/,'all']];
-  for(const [re,id] of rules) if(re.test(t))return SCEN.find(s=>s.id===id);
-  return SCEN.find(s=>s.id==='sched');
-}
-
-/* ---------- ledger controls ---------- */
-$('verifyBtn').addEventListener('click',async()=>{
-  const r=await verifyChain();
-  $('chainState').textContent=r.ok?'chain intact':'chain broken';
-  $('chainState').className='chainstate'+(r.ok?'':' broken');
-  $('verdict').className='verdict '+(r.ok?'ok':'bad');
-  $('verdict').textContent=r.ok
-    ?`Verified ${ledger.length} entries. Every hash matches the entry before it.`
-    :`Verification FAILED at entry #${r.at}. That entry, and everything after it, no longer matches.`;
-  renderLedger(r.ok?null:r.at);
-});
-$('tamperBtn').addEventListener('click',async()=>{
-  const target=ledger.find(e=>e.event==='human_decision')||ledger[1]||ledger[0];
-  if(!target){$('verdict').className='verdict';$('verdict').textContent='Record something first, then tamper with it.';return}
-  // Flip the decision to whatever it is not, so the edit is always real and
-  // always visible. The hash is deliberately left untouched -- that is the
-  // whole point: someone editing the record does not get to re-sign it.
-  const before=target.detail;
-  target.detail=/Approved/.test(before)
-    ? before.replace('Approved','Rejected')
-    : before.replace(/Rejected|Flagged for discussion/,'Approved');
-  if(target.detail===before)target.detail=before+' [silently edited]';
-  $('verdict').className='verdict';
-  $('verdict').textContent=`Entry #${target.seq} was edited in place: "${before.slice(0,44)}..." became `
-    +`"${target.detail.slice(0,44)}...". Its hash was not recomputed. Now verify the chain.`;
-  renderLedger();
-});
 
 /* ============================ DASHBOARD ============================ */
 function health(){
@@ -1281,20 +726,26 @@ function renderDash(){
     </div>`;
 }
 
-/* ============================ BOOT ============================ */
-function boot(){
-  renderSidebar(); renderAgents([],[]); renderLedger();
-  $('thread').innerHTML=`
-    <div class="chanhead"><h2># project-x</h2>
-      <span class="m">Registration system replacement &middot; 4 members &middot; Tarteeb is in this channel</span></div>
-    <div class="msg"><span class="av" style="background:var(--gold);color:#2b1e10">T</span>
-      <div><div class="hd"><span class="who2">Tarteeb</span><span class="bot">agent</span>
-        <span class="ts">${now()}</span></div>
-        <div class="txt">Morning ${me.name.split(' ')[0]}. I'm in this channel and I can see the
-          Project X schedule, budget and work breakdown. Ask me anything about them &mdash; or open
-          <strong>Project health</strong> in the sidebar for the current picture.</div></div></div>`;
-  $('verdict').className='verdict'; $('verdict').textContent='';
-  $('chainState').textContent='chain intact'; $('chainState').className='chainstate';
-}
 
+renderDash();
+
+/* Teams hands the tab its theme and who is looking at it. Outside Teams the
+   page still renders -- it just falls back to the OS colour scheme. */
+(function(){
+  if(!(window.microsoftTeams&&microsoftTeams.app))return;
+  microsoftTeams.app.initialize().then(async()=>{
+    const ctx=await microsoftTeams.app.getContext();
+    const who=ctx.user&&(ctx.user.displayName||ctx.user.userPrincipalName);
+    if(who)$('ctx').textContent=who+' \u00b7 project health';
+    const applyTheme=t=>{
+      document.documentElement.setAttribute('data-theme',
+        (t==='dark'||t==='contrast')?'dark':'light');
+      renderDash();
+    };
+    applyTheme(ctx.app&&ctx.app.theme);
+    microsoftTeams.app.registerOnThemeChangeHandler(applyTheme);
+  }).catch(()=>{});
+})();
 </script>
+</body>
+</html>

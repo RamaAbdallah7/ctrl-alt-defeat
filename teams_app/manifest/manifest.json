@@ -10,7 +10,10 @@
     "privacyUrl": "https://github.com/RamaAbdallah7/ctrl-alt-defeat",
     "termsOfUseUrl": "https://github.com/RamaAbdallah7/ctrl-alt-defeat"
   },
-  "icons": { "color": "color.png", "outline": "outline.png" },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
   "name": {
     "short": "Tarteeb",
     "full": "Tarteeb - project management copilot"
@@ -19,27 +22,95 @@
     "short": "Ten PM specialists in the channel where your team already works.",
     "full": "Tarteeb routes a plain-language project question to whichever of its ten specialist agents apply - critical path, earned value, business case, estimating, scope and decision analysis. Deterministic engines do every calculation; a single brief comes back with Approve, Discuss and Reject, and every step is written to an append-only audit trail. The AI advises; a human decides."
   },
-  "accentColor": "#12558C",
+  "accentColor": "#7A4F1C",
   "bots": [
     {
       "botId": "REPLACE_WITH_MICROSOFT_APP_ID",
-      "scopes": ["personal", "team", "groupChat"],
+      "scopes": [
+        "personal",
+        "team",
+        "groupChat"
+      ],
       "supportsFiles": true,
       "isNotificationOnly": false,
       "commandLists": [
         {
-          "scopes": ["personal", "team", "groupChat"],
+          "scopes": [
+            "personal",
+            "team",
+            "groupChat"
+          ],
           "commands": [
-            { "title": "critical path", "description": "When does the project finish and where is the slack?" },
-            { "title": "budget check", "description": "How are we tracking on cost and schedule? (PV, EV, AC, BAC)" },
-            { "title": "compare options", "description": "Weighted decision matrix across criteria" },
-            { "title": "business case", "description": "NPV, ROI and payback from yearly costs and benefits" },
-            { "title": "scope check", "description": "Has the work breakdown grown since baseline?" }
+            {
+              "title": "critical path",
+              "description": "When does the project finish and where is the slack?"
+            },
+            {
+              "title": "budget check",
+              "description": "How are we tracking on cost and schedule? (PV, EV, AC, BAC)"
+            },
+            {
+              "title": "compare options",
+              "description": "Weighted decision matrix across criteria"
+            },
+            {
+              "title": "business case",
+              "description": "NPV, ROI and payback from yearly costs and benefits"
+            },
+            {
+              "title": "scope check",
+              "description": "Has the work breakdown grown since baseline?"
+            }
           ]
         }
       ]
     }
   ],
-  "permissions": ["identity", "messageTeamMembers"],
-  "validDomains": []
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "REPLACE_WITH_YOUR_HTTPS_HOST"
+  ],
+  "staticTabs": [
+    {
+      "entityId": "tarteeb.health",
+      "name": "Project health",
+      "contentUrl": "https://REPLACE_WITH_YOUR_HTTPS_HOST/tab",
+      "websiteUrl": "https://REPLACE_WITH_YOUR_HTTPS_HOST/tab",
+      "scopes": [
+        "personal"
+      ]
+    }
+  ],
+  "configurableTabs": [
+    {
+      "configurationUrl": "https://REPLACE_WITH_YOUR_HTTPS_HOST/tab",
+      "scopes": [
+        "team",
+        "groupChat"
+      ],
+      "canUpdateConfiguration": false
+    }
+  ],
+  "composeExtensions": [
+    {
+      "botId": "REPLACE_WITH_MICROSOFT_APP_ID",
+      "commands": [
+        {
+          "id": "analyseWithTarteeb",
+          "type": "action",
+          "title": "Analyse with Tarteeb",
+          "description": "Send this message to the specialist agents and get one brief back.",
+          "context": [
+            "message",
+            "compose",
+            "commandBox"
+          ],
+          "fetchTask": true
+        }
+      ]
+    }
+  ]
 }

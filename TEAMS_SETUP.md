@@ -85,8 +85,27 @@ is the single most common reason a Teams bot goes silent.
 
 ## 5. Use it
 
+Tarteeb installs as a full Teams app, not just a bot. Three surfaces:
+
+**Bot**
 - **1:1** - message the bot directly.
 - **In a channel** - add it to the team, then `@Tarteeb how is the budget tracking?`
+
+**Message extension** - the Teams-native one. On *any* message in a channel,
+open the `...` menu and choose **Analyse with Tarteeb**. The figures someone
+already posted are pulled out of the message and prefilled, so nobody retypes
+them; edit if something is missing, hit **Run the analysis**, and the brief
+comes back as a card you can post into the thread.
+
+**Project health tab** - a personal tab showing the live dashboard: RAG
+verdict, KPIs, the PV/EV/AC variance chart, the critical path, and the open
+risks with the specialist that raised each one. It picks up the Teams theme
+and the signed-in user automatically.
+
+> The tab and the message extension need `validDomains` and the tab URLs in
+> the manifest to point at the same HTTPS host as your messaging endpoint.
+> Replace `REPLACE_WITH_YOUR_HTTPS_HOST` with your tunnel host (no scheme,
+> e.g. `abc123-3978.euw.devtunnels.ms`) before zipping.
 - **A CSV** - upload a tasks / scoring / cost CSV to a **channel** (see
   `demo/sample_data/`). Personal-chat uploads arrive as a consent card rather
   than a link, which the demo does not implement.
@@ -115,3 +134,5 @@ demonstrated on a laptop with no tenant and no tunnel.
 | "Upload a custom app" missing | Tenant forbids sideloading - use a dev tenant or the emulator |
 | Card shows but buttons do nothing | An old manifest; `supportsFiles` and bot scopes must match section 4 |
 | CSV ignored in a 1:1 chat | Expected - upload to a channel instead |
+| Tab is blank or refuses to load | `validDomains` does not list the tab's host, or the host is not HTTPS |
+| "Analyse with Tarteeb" missing from the `...` menu | `composeExtensions.botId` does not match the bot's app id |

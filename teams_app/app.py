@@ -72,6 +72,22 @@ async def messages(req: Request) -> Response:
     return Response(status=201)
 
 
+TAB_HTML = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tab.html")
+
+
+async def tab(_req: Request) -> Response:
+    """The project-health dashboard, rendered inside Teams as a tab."""
+    with open(TAB_HTML, encoding="utf-8") as fh:
+        body = fh.read()
+    return Response(
+        text=body,
+        content_type="text/html",
+        charset="utf-8",
+        # Teams renders tabs in an iframe, so the page must not refuse framing
+        headers={"Content-Security-Policy": "frame-ancestors teams.microsoft.com *.teams.microsoft.com *.skype.com"},
+    )
+
+
 async def health(_req: Request) -> Response:
     return json_response({
         "service": "tarteeb-teams",
@@ -95,9 +111,11 @@ def main():
 
     app = web.Application(middlewares=[aiohttp_error_middleware])
     app.router.add_post("/api/messages", messages)
+    app.router.add_get("/tab", tab)
     app.router.add_get("/health", health)
 
     print(f"Tarteeb (Teams) listening on http://localhost:{PORT}/api/messages")
+    print(f"  dashboard tab:  http://localhost:{PORT}/tab")
     print("Expose it over HTTPS and paste that URL as the bot's messaging endpoint.")
     web.run_app(app, host="0.0.0.0", port=PORT)
 
