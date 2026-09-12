@@ -265,6 +265,107 @@ TOOLS = [
         },
     },
     {
+        "name": "run_risk_analysis",
+        "description": (
+            "Risk register: probability x impact severity, expected monetary value, the response "
+            "each risk implies, and which high risks have no owner. Use when risks, threats, "
+            "concerns or 'what could go wrong' come up, or when someone asks how much contingency "
+            "to hold."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "risks": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},
+                            "name": {"type": "string"},
+                            "probability": {"type": "number", "description": "1-5"},
+                            "impact": {"type": "number", "description": "1-5"},
+                            "probability_pct": {"type": "number", "description": "optional real probability, 0-1, used for EMV"},
+                            "cost_impact": {"type": "number", "description": "monetary impact if it happens"},
+                            "kind": {"type": "string", "enum": ["threat", "opportunity"]},
+                            "owner": {"type": "string"},
+                        },
+                        "required": ["name", "probability", "impact"],
+                    },
+                },
+                "contingency_confidence": {"type": "number", "description": "multiplier on summed EMV for the reserve"},
+            },
+            "required": ["risks"],
+        },
+    },
+    {
+        "name": "run_resource_analysis",
+        "description": (
+            "Resource loading: finds where the same person is committed to overlapping tasks, and "
+            "which clashing task has enough float to move. Use when assignments, staffing, "
+            "over-allocation, 'who is doing what' or people being double-booked come up."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},
+                            "name": {"type": "string"},
+                            "duration": {"type": "number"},
+                            "predecessors": {"type": "array", "items": {"type": "string"}},
+                            "assignee": {"type": "string"},
+                            "units": {"type": "number", "description": "share of the person's day, 1.0 = full time"},
+                        },
+                        "required": ["id", "duration"],
+                    },
+                },
+                "capacity": {
+                    "type": "array",
+                    "description": "per-person capacity; omit for one full-time day each",
+                    "items": {
+                        "type": "object",
+                        "properties": {"person": {"type": "string"}, "capacity": {"type": "number"}},
+                        "required": ["person", "capacity"],
+                    },
+                },
+            },
+            "required": ["tasks"],
+        },
+    },
+    {
+        "name": "run_stakeholder_analysis",
+        "description": (
+            "Stakeholder power/interest grid, engagement gaps, and the number of communication "
+            "channels a team of this size carries. Use when stakeholders, sponsors, sign-off, "
+            "resistance, buy-in or who-to-keep-informed come up."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "stakeholders": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "role": {"type": "string"},
+                            "power": {"type": "number", "description": "1-5"},
+                            "interest": {"type": "number", "description": "1-5"},
+                            "current_engagement": {"type": "string", "enum": ["unaware", "resistant", "neutral", "supportive", "leading"]},
+                            "desired_engagement": {"type": "string", "enum": ["unaware", "resistant", "neutral", "supportive", "leading"]},
+                        },
+                        "required": ["name", "power", "interest"],
+                    },
+                },
+                "team_size": {"type": "integer", "description": "headcount for the channel count"},
+            },
+            "required": ["stakeholders"],
+        },
+    },
+    {
         "name": "ask_clarifying_question",
         "description": "Use when there isn't enough structured data to confidently run any engine.",
         "input_schema": {

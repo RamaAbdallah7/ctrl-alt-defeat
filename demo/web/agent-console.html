@@ -328,15 +328,15 @@ tr.crit td:first-child{font-weight:600;color:var(--critical)}
 .dpanel .c{padding:13px}
 .chartwrap{padding:6px 13px 13px;overflow-x:auto}
 
-.risk{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:10px;padding:9px 13px;
+.riskrow{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:10px;padding:9px 13px;
   border-bottom:1px solid var(--line);align-items:start}
-.risk:last-child{border-bottom:0}
-.risk .s{background:var(--critical);border-radius:2px;align-self:stretch}
-.risk.amber .s{background:var(--warn)}
-.risk.green .s{background:var(--good)}
-.risk .t{font-size:13px;font-weight:500;margin-bottom:1px}
-.risk .d{font-size:12px;color:var(--ink-2)}
-.risk .o{font-family:var(--f-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
+.riskrow:last-child{border-bottom:0}
+.riskrow .s{background:var(--critical);border-radius:2px;align-self:stretch}
+.riskrow.amber .s{background:var(--warn)}
+.riskrow.green .s{background:var(--good)}
+.riskrow .t{font-size:13px;font-weight:500;margin-bottom:1px}
+.riskrow .d{font-size:12px;color:var(--ink-2)}
+.riskrow .o{font-family:var(--f-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
   color:var(--ink-3);white-space:nowrap;padding-top:2px}
 
 .pathstrip{display:flex;gap:0;align-items:stretch;padding:13px;overflow-x:auto}
@@ -561,6 +561,83 @@ function estimateBand(est,type,budget){
     within:budget!=null?(budget>=L&&budget<=H):null};
 }
 
+
+function riskRegister(risks,conf){
+  conf=conf==null?1:conf;
+  const band=v=>v>=15?'extreme':v>=9?'high':v>=4?'moderate':'low';
+  const RESP={extreme:'avoid or transfer \u2014 accepting it at this severity is a decision someone must sign',
+    high:'mitigate \u2014 cut the probability or the impact, and name an owner with a date',
+    moderate:'mitigate or accept actively, with a trigger that says when to act',
+    low:'accept passively \u2014 log it and review at the next gate'};
+  const PMAP={1:.1,2:.3,3:.5,4:.7,5:.9};
+  let emv=0; const unowned=[];
+  const rows=risks.map(r=>{
+    const sev=r.probability*r.impact, b=band(sev);
+    const pct=r.probability_pct!=null?r.probability_pct:PMAP[Math.round(r.probability)];
+    const kind=r.kind||'threat';
+    const e=r.cost_impact!=null?pct*r.cost_impact*(kind==='threat'?1:-1):null;
+    if(e!=null)emv+=e;
+    if(!r.owner&&(b==='high'||b==='extreme'))unowned.push(r.name);
+    return{...r,kind,severity:sev,band:b,pct,emv:e,response:RESP[b]};
+  }).sort((a,b)=>b.severity-a.severity||(b.emv||0)-(a.emv||0));
+  const byBand={extreme:0,high:0,moderate:0,low:0};
+  rows.forEach(r=>byBand[r.band]++);
+  return{risks:rows,count:rows.length,byBand,emv,contingency:emv>0?emv*conf:0,unowned};
+}
+
+function resourceLoad(tasks,capacity){
+  capacity=capacity||{};
+  const sched=cpm(tasks), byId={}; sched.tasks.forEach(t=>byId[t.id]=t);
+  const assign={}; tasks.forEach(t=>assign[t.id]=t);
+  const people={};
+  sched.tasks.forEach(t=>{const who=assign[t.id].assignee; if(!who)return;
+    (people[who]=people[who]||[]).push({id:t.id,name:t.name,
+      units:assign[t.id].units==null?1:assign[t.id].units,
+      start:t.es,finish:t.ef,tf:t.tf,crit:t.crit})});
+  const horizon=Math.ceil(sched.duration), report=[], conflicts=[];
+  Object.keys(people).sort().forEach(who=>{
+    const items=people[who], cap=capacity[who]==null?1:capacity[who];
+    let peak=0, over=[], committed=0;
+    items.forEach(i=>committed+=i.units*(i.finish-i.start));
+    for(let d=0;d<horizon;d++){
+      const on=items.filter(i=>i.start<=d&&d<i.finish);
+      const load=on.reduce((a,i)=>a+i.units,0);
+      peak=Math.max(peak,load);
+      if(load>cap+1e-9)over.push({day:d,tasks:on.map(i=>i.id)});
+    }
+    report.push({person:who,capacity:cap,peak,over:over.map(o=>o.day),
+      util:horizon?committed/(cap*horizon):null});
+    if(over.length){
+      const ids=[...new Set(over.flatMap(o=>o.tasks))].sort();
+      const movable=ids.map(i=>byId[i]).filter(t=>!t.crit);
+      const best=movable.length?movable.reduce((a,b)=>a.tf>=b.tf?a:b):null;
+      conflicts.push({person:who,days:over.map(o=>o.day),peak,capacity:cap,tasks:ids,
+        onCritical:ids.filter(i=>byId[i].crit),
+        hint:best?`Move '${best.name}' (${best.id}) \u2014 it holds ${best.tf} days of total float, so delaying it does not move the finish date.`
+          :'Every clashing task is on the critical path, so levelling cannot fix this without moving the date or adding a person.'});
+    }
+  });
+  return{duration:sched.duration,people:report,conflicts,over:conflicts.length>0};
+}
+
+function channels(n){return n*(n-1)/2}
+function stakeholderGrid(list,teamSize){
+  const LV=['unaware','resistant','neutral','supportive','leading'];
+  const STRAT={'high|high':'manage closely','high|low':'keep satisfied',
+    'low|high':'keep informed','low|low':'monitor'};
+  const rows=list.map(s=>{
+    const k=(s.power>=3.5?'high':'low')+'|'+(s.interest>=3.5?'high':'low');
+    const cur=s.current_engagement||'neutral', des=s.desired_engagement||'supportive';
+    return{...s,strategy:STRAT[k],quadrant:k.replace('|',' power / ')+' interest',
+      cur,des,gap:LV.indexOf(des)-LV.indexOf(cur),priority:s.power*s.interest};
+  }).sort((a,b)=>b.priority-a.priority);
+  const gaps=rows.filter(r=>r.gap>0).sort((a,b)=>b.power*b.gap-a.power*a.gap);
+  const byStrat={}; rows.forEach(r=>(byStrat[r.strategy]=byStrat[r.strategy]||[]).push(r.name));
+  const n=teamSize==null?rows.length:teamSize;
+  return{stakeholders:rows,count:rows.length,byStrat,gaps,teamSize:n,channels:channels(n),
+    resistantPowerful:rows.filter(r=>r.cur==='resistant'&&r.power>=3.5)};
+}
+
 /* ============================ ROSTER ============================ */
 const ROSTER=[
   {k:'schedule',   n:'Critical Path Analyst',      r:'Schedule',    m:'When the project actually finishes, and which tasks drive that date.'},
@@ -572,6 +649,9 @@ const ROSTER=[
   {k:'estimate',   n:'Estimate Assurance Analyst', r:'Estimating',  m:'Holds an estimate to the accuracy its type actually supports.'},
   {k:'wbs',        n:'Scope Architect',            r:'Scope',       m:'Whether the breakdown holds together and accounts for all the work.'},
   {k:'scope_creep',n:'Baseline Guardian',          r:'Scope',       m:'What changed against the approved baseline without a change request.'},
+  {k:'risk',       n:'Risk Officer',               r:'Risk',        m:'Ranks the register, prices it as expected monetary value, names what has no owner.'},
+  {k:'resources',  n:'Resource Planner',           r:'Resource',    m:'Where the plan has one person in two places, and which task is cheapest to move.'},
+  {k:'stakeholders',n:'Stakeholder Analyst',       r:'Engagement',  m:'Power against interest, who is resistant, and the communication load.'},
   {k:'scoring',    n:'Options Analyst',            r:'Decision',    m:'The weighted decision matrix \u2014 and when a winner is really a tie.'},
 ];
 const BY=Object.fromEntries(ROSTER.map(a=>[a.k,a]));
@@ -590,6 +670,23 @@ const TASKS=[
  {id:'I',name:'Staff training',duration:2,predecessors:['G']},
  {id:'J',name:'Go-live',duration:3,predecessors:['F','H','I'],crash_duration:2,normal_cost:500,crash_cost:1400},
 ];
+const RISKS=[
+ {id:'R1',name:'Key developer leaves mid-build',probability:3,impact:5,cost_impact:40000},
+ {id:'R2',name:'Vendor delivers hardware late',probability:4,impact:4,cost_impact:25000,owner:'Rama Abdallah'},
+ {id:'R3',name:'Scope grows again before go-live',probability:5,impact:3,cost_impact:30000},
+ {id:'R4',name:'Data migration finishes early',probability:2,impact:3,cost_impact:15000,kind:'opportunity',owner:'Khadeja Ahmed'},
+ {id:'R5',name:'Training slips past term start',probability:2,impact:2,cost_impact:8000,owner:'Semhal Desta'},
+];
+const STAKEHOLDERS=[
+ {name:'University CIO',role:'Sponsor',power:5,interest:3,current_engagement:'neutral',desired_engagement:'supportive'},
+ {name:'Finance director',role:'Budget holder',power:5,interest:4,current_engagement:'resistant',desired_engagement:'leading'},
+ {name:'Registrar',role:'Primary user',power:3,interest:5,current_engagement:'resistant',desired_engagement:'supportive'},
+ {name:'Students',role:'End users',power:2,interest:5,current_engagement:'unaware',desired_engagement:'neutral'},
+ {name:'Facilities',role:'Support',power:2,interest:2,current_engagement:'neutral',desired_engagement:'neutral'},
+];
+const STAFFED=TASKS.map(t=>({...t,assignee:{A:'Khadeja Ahmed',B:'Rama Abdallah',C:'Semhal Desta',
+ D:'Rama Abdallah',E:'Rama Abdallah',F:'Khadeja Ahmed',G:'Semhal Desta',H:'Rama Abdallah',
+ I:'Khadeja Ahmed',J:'Rama Abdallah'}[t.id]}));
 const WBS_BASE=[
  {id:'1',name:'Registration system',value:120000},
  {id:'1.1',name:'Analysis',parent:'1',value:30000},
@@ -647,12 +744,29 @@ const SCEN=[
   src:'CSV dropped in #project-x',wake:['wbs','scope_creep'],
   run(){return{wbs:wbs(WBS_NOW),scope_creep:scopeCreep(WBS_BASE,WBS_NOW)}}},
 
+ {id:'risks',label:'What could go wrong?',
+  ask:'What are the biggest risks on Project X, and how much contingency should we be holding?',
+  src:'@Tarteeb in #project-x',wake:['risk'],
+  run(){return{risk:riskRegister(RISKS)}}},
+
+ {id:'people',label:'Is anyone double-booked?',
+  ask:'Is anyone on the team double-booked across the Project X schedule?',
+  src:'@Tarteeb in #delivery',wake:['resources','schedule'],
+  run(){return{resources:resourceLoad(STAFFED),schedule:cpm(TASKS)}}},
+
+ {id:'people2',label:'Who do we need on side?',
+  ask:'Who do we actually need on side before the go-live decision, and who is against us?',
+  src:'@Tarteeb in #steering',wake:['stakeholders'],
+  run(){return{stakeholders:stakeholderGrid(STAKEHOLDERS,6)}}},
+
  {id:'all',label:'Full steering review',
   ask:'Full review before the steering committee: schedule, cost, scope and the vendor decision.',
-  src:'/pm in #steering',wake:['schedule','crashing','cost','scoring','wbs','scope_creep'],
+  src:'/pm in #steering',
+  wake:['schedule','crashing','cost','scoring','wbs','scope_creep','risk','resources','stakeholders'],
   run(){return{schedule:cpm(TASKS),crashing:crash(TASKS,13),cost:evm(42000,35000,41000,120000,12),
     scoring:SCEN.find(s=>s.id==='vendor').run().scoring,wbs:wbs(WBS_NOW),
-    scope_creep:scopeCreep(WBS_BASE,WBS_NOW)}}},
+    scope_creep:scopeCreep(WBS_BASE,WBS_NOW),risk:riskRegister(RISKS),
+    resources:resourceLoad(STAFFED),stakeholders:stakeholderGrid(STAKEHOLDERS,6)}}},
 ];
 
 /* ============================ FINDINGS ============================ */
@@ -711,6 +825,28 @@ const FINDING={
     (${r.added.map(a=>a.name).join(', ')})${r.removed.length?', '+r.removed.length+' removed':''}.
     Total moved ${M((r.growth>0?'+':'')+money(r.growth))} \u2014 ${M((r.pct>0?'+':'')+r.pct.toFixed(1)+'%')} against
     baseline. Anything added without an approved change request is scope creep.`}},
+ risk(r){const t=r.risks[0];
+  return{tone:r.byBand.extreme?'bad':r.byBand.high?'warn':'good',
+   text:`${M(r.count+' risks')} on the register: ${M(r.byBand.extreme)} extreme, ${M(r.byBand.high)} high.
+   The worst is ${M(t.name)} at severity ${M(t.severity+'/25')} \u2014 ${t.response}.
+   Expected monetary value across the register is ${M(money(r.emv))}, which is the floor for a
+   defensible contingency reserve.${r.unowned.length?` ${M(r.unowned.length+' high-or-worse risk(s)')}
+   have no owner (${r.unowned.join(', ')}) \u2014 an unowned risk is not being managed, whatever
+   the register says.`:''}`}},
+ resources(r){ if(!r.over)return{tone:'good',
+   text:`Nobody is over-allocated \u2014 every person stays inside capacity across all ${M(r.duration+' days')}.`};
+  const c=r.conflicts[0];
+  return{tone:'bad',text:`${M(c.person)} is booked at ${M(c.peak+'x')} against a capacity of
+   ${M(c.capacity)} on ${M(c.days.length+' day(s)')}, across ${M(c.tasks.join(', '))}. ${c.hint}
+   ${c.onCritical.length?'Some of that work sits on the critical path, so this is a schedule risk, not just a staffing one.':''}`}},
+ stakeholders(r){const close=r.byStrat['manage closely']||[],w=r.gaps[0];
+  return{tone:r.resistantPowerful.length?'bad':'warn',
+   text:`${M(r.count+' stakeholders')} mapped.${close.length?` Manage closely: ${M(close.join(', '))}.`:''}
+   ${w?`The widest gap is ${M(w.name)}, currently ${M(w.cur)} and needed at ${M(w.des)}, with power
+   ${M(w.power+'/5')}.`:''} ${r.resistantPowerful.length?`${M(r.resistantPowerful.map(x=>x.name).join(', '))}
+   ${r.resistantPowerful.length===1?'is':'are'} resistant AND powerful \u2014 the combination that stops
+   projects late, after the money is spent.`:''} At ${M(r.teamSize+' people')} there are
+   ${M(r.channels+' two-way channels')} to keep coherent.`}},
  scoring(r){const t=r.ranked[0],s=r.ranked[1],gap=t.score-s.score;
   return{tone:gap<5?'warn':'good',text:`${M(t.option)} ranks first on the weighted criteria with ${M(t.score)}.
     ${gap<5?`But ${M(s.option)} scores ${M(s.score)} \u2014 a gap of ${M(gap.toFixed(2))} points is inside the noise
@@ -738,6 +874,14 @@ function tilesFor(out){
     n:r[0].score+' vs '+r[1].score,c:(r[0].score-r[1].score)<5?'warn':'good'})}
   if(out.scope_creep)t.push({k:'Scope vs baseline',v:(out.scope_creep.pct>0?'+':'')+out.scope_creep.pct.toFixed(1)+'%',
     n:money(out.scope_creep.growth)+' added',c:out.scope_creep.growth>0?'bad':'good'});
+  if(out.risk)t.push({k:'Risk exposure',v:money(out.risk.emv),
+    n:out.risk.byBand.extreme+' extreme, '+out.risk.byBand.high+' high',
+    c:out.risk.byBand.extreme?'bad':'warn'});
+  if(out.resources)t.push({k:'Resource clashes',v:out.resources.conflicts.length||'none',
+    n:out.resources.over?out.resources.conflicts[0].person+' peaks at '+out.resources.conflicts[0].peak+'x':'all within capacity',
+    c:out.resources.over?'bad':'good'});
+  if(out.stakeholders)t.push({k:'Comms channels',v:out.stakeholders.channels,
+    n:out.stakeholders.teamSize+' people, '+(out.stakeholders.byStrat['manage closely']||[]).length+' to manage closely'});
   if(out.estimate)t.push({k:'Estimate range',v:money(out.estimate.low)+'\u2013'+money(out.estimate.high),
     n:out.estimate.type.toUpperCase()+' accuracy band'});
   return t;
@@ -759,6 +903,14 @@ function buildBrief(scn,out){
     risks.push(`the work breakdown is short by ${money(Math.abs(out.wbs.violations[0].diff))} against its own parent`);
   if(out.pert&&out.pert.prob<.5)
     risks.push(`there is only a ${(out.pert.prob*100).toFixed(0)}% chance of hitting the ${out.pert.target}-day target`);
+  if(out.risk&&out.risk.byBand.extreme)
+    risks.push(`${out.risk.byBand.extreme} risk(s) sit in the extreme band carrying ${money(out.risk.emv)} of expected monetary value`);
+  if(out.risk&&out.risk.unowned.length)
+    risks.push(`${out.risk.unowned.length} high-or-worse risk(s) have nobody's name against them`);
+  if(out.resources&&out.resources.over)
+    risks.push(`${out.resources.conflicts[0].person} is double-booked on ${out.resources.conflicts[0].days.length} day(s), which the critical path calculation cannot see`);
+  if(out.stakeholders&&out.stakeholders.resistantPowerful.length)
+    risks.push(`${out.stakeholders.resistantPowerful.map(x=>x.name).join(' and ')} can block this and ${out.stakeholders.resistantPowerful.length===1?'is':'are'} currently resistant`);
   if(out.financial&&out.financial.npv>0)
     risks.push(`the business case holds at ${money(out.financial.npv)} NPV, so the pressure is delivery, not justification`);
 
@@ -766,6 +918,8 @@ function buildBrief(scn,out){
   if(out.scoring)miss.push('who set the criterion weights, since the ranking turns on them');
   if(out.crashing)miss.push('crash costs for the tasks that currently have none');
   if(out.scope_creep)miss.push('the change requests, if any, behind the new items');
+  if(out.risk)miss.push('cost impacts for the risks that carry none, so the reserve can be sized properly');
+  if(out.resources)miss.push('whether anyone can be reassigned rather than the work delayed');
   if(!miss.length)miss.push('nothing material \u2014 the engines had what they needed');
 
   if(out.crashing&&!out.crashing.reached)next.push('accept day '+out.crashing.finalDur);
@@ -773,6 +927,9 @@ function buildBrief(scn,out){
   if(out.fast_track&&out.fast_track.candidates.length)next.push('overlap '+out.fast_track.candidates[0].pred+' and '+out.fast_track.candidates[0].succ+' and carry the rework risk');
   if(out.scoring)next.push('run a tie-break on the two leading options');
   if(out.scope_creep&&out.scope_creep.added.length)next.push('send the new scope back as a change request');
+  if(out.risk&&out.risk.unowned.length)next.push('assign owners to the '+out.risk.unowned.length+' unowned risk(s)');
+  if(out.resources&&out.resources.over)next.push('level '+out.resources.conflicts[0].person+"'s load");
+  if(out.stakeholders&&out.stakeholders.gaps.length)next.push('move '+out.stakeholders.gaps[0].name+' before the decision');
   if(out.cost&&!next.length)next.push('re-baseline against the forecast');
   if(!next.length)next.push('proceed as planned');
 
@@ -1165,6 +1322,7 @@ function health(){
   const sch=cpm(TASKS), cost=evm(42000,35000,41000,120000,12);
   const cr=crash(TASKS,13), sc=scopeCreep(WBS_BASE,WBS_NOW), wb=wbs(WBS_NOW);
   const fin=finance([120000,25000,25000,25000,25000],[0,90000,110000,120000,130000],.08,0);
+  const rk=riskRegister(RISKS), res=resourceLoad(STAFFED), stk=stakeholderGrid(STAKEHOLDERS,6);
   const floatDays=sch.tasks.filter(t=>!t.crit).reduce((a,t)=>a+t.tf,0);
   const k=[];
   const rag=(v,g,a)=>v>=g?'green':v>=a?'amber':'red';
@@ -1187,6 +1345,14 @@ function health(){
   k.push({k:'Business case',tag:'NPV',v:money(fin.npv),
     n:`ROI ${(fin.roi*100).toFixed(0)}%, payback year ${fin.payback.toFixed(1)}.`,
     s:fin.npv>0?'green':'red',pct:Math.min(Math.max(fin.npv,0)/200000,1)});
+  k.push({k:'Risk exposure',tag:'EMV',v:money(rk.emv),
+    n:`${rk.byBand.extreme} extreme, ${rk.byBand.high} high. ${rk.unowned.length} without an owner.`,
+    s:rk.byBand.extreme?'red':rk.byBand.high?'amber':'green',pct:Math.min(rk.emv/100000,1)});
+  k.push({k:'Resource load',tag:res.over?'clash':'clear',
+    v:res.over?res.conflicts[0].peak.toFixed(1)+'x':'1.0x',
+    n:res.over?`${res.conflicts[0].person} is booked past capacity on ${res.conflicts[0].days.length} days.`
+      :'Everyone is inside their capacity.',
+    s:res.over?'red':'green',pct:Math.min((res.over?res.conflicts[0].peak:1)/2,1)});
 
   const reds=k.filter(x=>x.s==='red').length, ambers=k.filter(x=>x.s==='amber').length;
   const overall=reds>=2?'red':reds===1||ambers>=2?'amber':'green';
@@ -1203,7 +1369,13 @@ function health(){
   if(fin.npv>0)risks.push({s:'green',t:'The business case still holds',
     o:'Business Case Analyst',d:`NPV ${money(fin.npv)} at ${(fin.rate*100).toFixed(0)}%. The pressure here is delivery, not justification.`});
 
-  return {k,overall,risks,sch,cost,cr,sc,fin};
+  if(rk.byBand.extreme)risks.push({s:'red',t:`${rk.byBand.extreme} risks in the extreme band`,
+    o:'Risk Officer',d:`Worst is "${rk.risks[0].name}" at severity ${rk.risks[0].severity}/25. Expected monetary value across the register is ${money(rk.emv)} \u2014 a contingency reserve below that is underfunded on the numbers.${rk.unowned.length?` ${rk.unowned.length} high-or-worse risks have no owner.`:''}`});
+  if(res.over)risks.push({s:'red',t:`${res.conflicts[0].person} is in two places at once`,
+    o:'Resource Planner',d:`Booked at ${res.conflicts[0].peak}x capacity on ${res.conflicts[0].days.length} days across ${res.conflicts[0].tasks.join(', ')}. ${res.conflicts[0].hint}`});
+  if(stk.resistantPowerful.length)risks.push({s:'amber',t:`${stk.resistantPowerful.map(x=>x.name).join(' and ')} can block this`,
+    o:'Stakeholder Analyst',d:`Currently resistant at power ${stk.resistantPowerful[0].power}/5. ${stk.gaps.length?`The widest engagement gap is ${stk.gaps[0].name}: ${stk.gaps[0].cur} today, needs to be ${stk.gaps[0].des}.`:''}`});
+  return {k,overall,risks,sch,cost,cr,sc,fin,rk,res,stk};
 }
 
 function varianceChart(cost){
@@ -1225,6 +1397,36 @@ function varianceChart(cost){
           fill="var(--ink-2)">${money(s.v)}</text>`});
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px" role="img"
     aria-label="Planned value, earned value and actual cost compared">${g}</svg>`;
+}
+
+function riskMatrix(rk){
+  const C=54,R=30,P={l:34,t:10,b:26,r:8};
+  const W=P.l+C*5+P.r, H=P.t+R*5+P.b;
+  const fill=sev=>sev>=15?'var(--critical)':sev>=9?'var(--warn)':sev>=4?'var(--gold)':'var(--good)';
+  let g='';
+  for(let i=0;i<5;i++)for(let pr=0;pr<5;pr++){
+    const sev=(i+1)*(pr+1);
+    g+=`<rect x="${P.l+i*C}" y="${P.t+(4-pr)*R}" width="${C-2}" height="${R-2}" rx="2"
+      fill="${fill(sev)}" opacity="0.14"/>`;
+  }
+  rk.risks.forEach(r=>{
+    const x=P.l+(r.impact-1)*C+(C-2)/2, y=P.t+(5-r.probability)*R+(R-2)/2;
+    g+=`<circle cx="${x}" cy="${y}" r="10" fill="${fill(r.severity)}" opacity="0.9"/>
+        <text x="${x}" y="${y+3.5}" font-family="var(--f-mono)" font-size="9" font-weight="600"
+          fill="#fff" text-anchor="middle">${r.id}</text>`;
+  });
+  for(let pr=1;pr<=5;pr++)
+    g+=`<text x="${P.l-7}" y="${P.t+(5-pr)*R+R/2+3}" font-family="var(--f-mono)" font-size="9"
+      fill="var(--ink-3)" text-anchor="end">${pr}</text>`;
+  for(let i=1;i<=5;i++)
+    g+=`<text x="${P.l+(i-1)*C+(C-2)/2}" y="${H-P.b+14}" font-family="var(--f-mono)" font-size="9"
+      fill="var(--ink-3)" text-anchor="middle">${i}</text>`;
+  g+=`<text x="${P.l+C*2.5}" y="${H-3}" font-family="var(--f-mono)" font-size="9"
+        fill="var(--ink-3)" text-anchor="middle">impact</text>
+      <text x="10" y="${P.t+R*2.5}" font-family="var(--f-mono)" font-size="9" fill="var(--ink-3)"
+        text-anchor="middle" transform="rotate(-90 10 ${P.t+R*2.5})">probability</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px" role="img"
+    aria-label="Risks plotted on a five by five probability and impact matrix">${g}</svg>`;
 }
 
 function renderDash(){
@@ -1272,9 +1474,16 @@ function renderDash(){
           ${Math.max(...h.sch.tasks.filter(t=>!t.crit).map(t=>t.tf))} days.</div>
       </div>
 
+      <div class="dpanel">
+        <h3>Risk matrix &middot; probability x impact</h3>
+        <div class="chartwrap">${riskMatrix(h.rk)}</div>
+        <div class="secnote">Severity is probability x impact on the 5x5 grid. Expected monetary
+          value prices the same register in money: ${money(h.rk.emv)} across ${h.rk.count} risks.</div>
+      </div>
+
       <div class="dpanel" style="grid-column:1/-1">
         <h3>Open risks &mdash; raised by the specialists, not by hand</h3>
-        ${h.risks.map(r=>`<div class="risk ${r.s}"><div class="s"></div>
+        ${h.risks.map(r=>`<div class="riskrow ${r.s}"><div class="s"></div>
           <div><div class="t">${r.t}</div><div class="d">${r.d}</div></div>
           <div class="o">${r.o}</div></div>`).join('')}
       </div>

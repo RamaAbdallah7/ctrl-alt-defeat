@@ -47,6 +47,9 @@ from engines.pert import compute_pert, PERTError
 from engines.compression import crash_schedule, fast_track_candidates, CompressionError
 from engines.wbs import analyze_wbs, detect_scope_creep, WBSError
 from engines.estimating import classify_estimate, EstimateError
+from engines.risk import analyze_risks, RiskError
+from engines.resources import analyze_resources, ResourceError
+from engines.stakeholders import analyze_stakeholders, StakeholderError
 from agents.prompts import ROUTER_SYSTEM_PROMPT, ORCHESTRATOR_SYSTEM_PROMPT
 from agents.tool_schemas import TOOLS
 from agents.audit import log_event
@@ -74,14 +77,30 @@ ENGINE_RUNNERS = {
         detect_scope_creep, inp["baseline"], inp["current"], inp.get("value_label", "cost"))),
     "run_estimate_check": lambda inp: ("estimate", _safe(
         classify_estimate, inp["estimate"], inp["estimate_type"], inp.get("budget"))),
+    "run_risk_analysis": lambda inp: ("risk", _safe(
+        analyze_risks, inp["risks"], inp.get("contingency_confidence", 1.0))),
+    "run_resource_analysis": lambda inp: ("resources", _safe(
+        analyze_resources, inp["tasks"], _capacity_map(inp.get("capacity")))),
+    "run_stakeholder_analysis": lambda inp: ("stakeholders", _safe(
+        analyze_stakeholders, inp["stakeholders"], inp.get("team_size"))),
 }
+
+
+def _capacity_map(capacity):
+    """Providers express a map as a list of pairs; normalise either shape."""
+    if not capacity:
+        return None
+    if isinstance(capacity, dict):
+        return capacity
+    return {c["person"]: c["capacity"] for c in capacity if "person" in c}
 
 
 def _safe(fn, *args):
     try:
         return {"ok": True, "result": fn(*args)}
     except (CPMError, ScoringError, EVMError, FinanceError, PERTError,
-            CompressionError, WBSError, EstimateError) as e:
+            CompressionError, WBSError, EstimateError, RiskError,
+            ResourceError, StakeholderError) as e:
         return {"ok": False, "error": str(e)}
     except (KeyError, TypeError, ValueError) as e:
         # a provider handed us malformed structured input

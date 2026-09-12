@@ -148,6 +148,46 @@ def _decision(r):
     return line
 
 
+def _risk(r):
+    top = r["risks"][0]
+    line = (f"{r['count']} risks on the register: {r['by_band']['extreme']} extreme, "
+            f"{r['by_band']['high']} high. The worst is '{top['name']}' at severity "
+            f"{top['severity']:g}/25 -- {top['recommended_response']}.")
+    if r["emv_total"]:
+        line += (f" Expected monetary value across the register is {r['emv_total']:,.0f}, "
+                 f"which is the floor for a defensible contingency reserve.")
+    if r["unowned_high_risks"]:
+        line += (f" {len(r['unowned_high_risks'])} high-or-worse risk(s) have no owner -- "
+                 f"an unowned risk is not being managed.")
+    return line
+
+
+def _resources(r):
+    if not r["conflicts"]:
+        return (f"Nobody is over-allocated: every person stays inside their capacity across "
+                f"all {r['project_duration']:g} days.")
+    c = r["conflicts"][0]
+    line = (f"{c['person']} is booked at {c['peak_load']:g} against a capacity of "
+            f"{c['capacity']:g} on {len(c['days'])} day(s), across {', '.join(c['tasks'])}. "
+            f"{c['levelling_hint']}")
+    if c["on_critical_path"]:
+        line += " Some of that work is on the critical path, so this is a schedule risk."
+    return line
+
+
+def _stakeholders(r):
+    close = r["by_strategy"].get("manage closely", [])
+    line = (f"{r['count']} stakeholders mapped. "
+            + (f"Manage closely: {', '.join(close)}. " if close else ""))
+    if r["engagement_gaps"]:
+        w = r["engagement_gaps"][0]
+        line += (f"The widest gap is {w['name']}, currently {w['current_engagement']} and needed at "
+                 f"{w['desired_engagement']}, with power {w['power']:g}/5. ")
+    line += (f"At {r['team_size']} people there are {r['communication_channels']} two-way "
+             f"communication channels to keep coherent.")
+    return line
+
+
 ROSTER = [
     Specialist(
         key="schedule", name="Critical Path Analyst", role="Schedule specialist",
@@ -200,6 +240,24 @@ ROSTER = [
         mandate="Watches the current plan against the approved baseline and names what changed "
                 "without a change request.",
         tools=["run_scope_creep_analysis"], summarize=_scope_creep,
+    ),
+    Specialist(
+        key="risk", name="Risk Officer", role="Risk specialist",
+        mandate="Ranks the register by probability and impact, prices it as expected monetary "
+                "value, and names what has no owner.",
+        tools=["run_risk_analysis"], summarize=_risk,
+    ),
+    Specialist(
+        key="resources", name="Resource Planner", role="Resource specialist",
+        mandate="Finds where the plan has the same person in two places at once, and which task "
+                "is cheapest to move.",
+        tools=["run_resource_analysis"], summarize=_resources,
+    ),
+    Specialist(
+        key="stakeholders", name="Stakeholder Analyst", role="Engagement specialist",
+        mandate="Maps power against interest, finds who is resistant and powerful, and counts the "
+                "communication load.",
+        tools=["run_stakeholder_analysis"], summarize=_stakeholders,
     ),
     Specialist(
         key="scoring", name="Options Analyst", role="Decision specialist",
