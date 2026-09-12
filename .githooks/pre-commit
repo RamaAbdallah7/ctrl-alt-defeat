@@ -1,0 +1,10 @@
+#!/bin/sh
+# Block a commit that would introduce a credential.
+# Enable once per clone:  git config core.hooksPath .githooks
+PY=".venv/bin/python"
+[ -x "$PY" ] || PY="python3"
+"$PY" security/scan_cli.py --staged || {
+  echo
+  echo "Commit blocked. To override for a false positive:  git commit --no-verify"
+  exit 1
+}

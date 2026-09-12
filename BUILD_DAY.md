@@ -45,7 +45,11 @@ go, and keep your commits inside the build window. Log timestamps below.
 - [ ] `python demo/cli_demo.py all` runs and prints a brief (offline mode OK)
 - [ ] all four `tests/test_*.py` green
 - [ ] a throwaway Slack workspace created (so build-day is just tokens)
-- [ ] **rotate** the GitHub PAT and Gemini key that were shared in chat
+- [x] **rotate** the GitHub PAT and Gemini key that were shared in chat
+      A second Gemini key was pasted into a chat on 12 Sep and must also be
+      rotated. `security/` now scans for this: the pre-commit hook blocks a
+      commit containing a credential, and `security/scan_cli.py --history`
+      checks what is already in the repo (currently clean).
 
 ## 11:15 — kickoff
 
